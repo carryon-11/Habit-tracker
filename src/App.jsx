@@ -155,9 +155,10 @@ const CSS = `
 .hg-grp-name{position:sticky;left:0;z-index:2;background:#fff;height:36px;display:flex;align-items:center;gap:9px;padding:0 13px;border-right:1px solid var(--line);}
 .hg-grp-em{font-size:16px;}
 .hg-grp-nm{font-size:14px;font-weight:800;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.hg-grp-badge{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:99px;white-space:nowrap;}
-.hg-grp-pct{font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;}
-.hg-grp-meta{grid-column:2 / -1;display:flex;align-items:center;gap:10px;padding-left:14px;min-width:0;}
+.hg-grp-badge{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:99px;white-space:nowrap;position:relative;z-index:1;}
+.hg-grp-pct{font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;position:relative;z-index:1;}
+.hg-grp-meta{grid-column:2 / -1;position:relative;display:flex;align-items:center;gap:10px;padding-left:14px;min-width:0;overflow:hidden;}
+.hg-grp-fill{position:absolute;left:0;top:0;bottom:0;opacity:.2;transition:width .6s cubic-bezier(.3,.7,.3,1);pointer-events:none;}
 .hg-grid-row{border-bottom:1px solid var(--line);}
 .hg-grid-row:last-child{border-bottom:none;}
 .hg-gr-name{position:sticky;left:0;z-index:2;background:var(--card);padding:0 13px;height:42px;display:flex;align-items:center;gap:9px;border-right:1px solid var(--line);}
@@ -182,7 +183,7 @@ const CSS = `
 .hg-cell:disabled{opacity:.32;cursor:default;}
 
 /* analysis */
-.hg-anacol{flex:0 0 330px;min-width:290px;}
+.hg-anacol{flex:0 0 300px;min-width:260px;}
 .hg-ana-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);}
 .hg-ana-row:last-child{border-bottom:none;}
 .hg-ana-dot{width:9px;height:9px;border-radius:99px;flex-shrink:0;}
@@ -681,6 +682,7 @@ export default function HabitGameDashboard() {
                               <span className="hg-grp-nm">{g.project ? g.project.name : '미분류'}</span>
                             </div>
                             <div className="hg-grp-meta">
+                              <div className="hg-grp-fill" style={{ width: `${gs.pct}%`, background: col }} />
                               {g.project && <span className="hg-grp-badge" style={{ background: col + '1e', color: col }}>{g.project.horizon}</span>}
                               <span className="hg-grp-pct" style={{ color: col }}>{gs.pct}%</span>
                             </div>
