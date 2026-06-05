@@ -17,6 +17,10 @@ const HORIZONS = ['장기', '중기', '단기'];
 const HORIZON_ORDER = { '장기': 0, '중기': 1, '단기': 2 };
 const STORAGE_KEY = 'habit-game-dashboard-v2';
 
+// 같은 밀리초에 연속으로 추가해도 충돌하지 않는 고유 id (prefix + 시각 + 카운터)
+let uidCounter = 0;
+const uid = (prefix) => `${prefix}${Date.now().toString(36)}${(uidCounter++).toString(36)}`;
+
 const SEED_PROJECTS = [
   { id: 'p1', name: '건강 체질 만들기', emoji: '🌱', color: '#2f9e6f', horizon: '장기' },
   { id: 'p2', name: '커리어 성장', emoji: '🚀', color: '#5b7fb9', horizon: '중기' },
@@ -174,6 +178,7 @@ const CSS = `
 .hg-ana-bar{width:80px;height:9px;border-radius:99px;background:var(--line);overflow:hidden;flex-shrink:0;}
 .hg-ana-fill{height:100%;border-radius:99px;transition:width .7s cubic-bezier(.3,.7,.3,1);}
 .hg-ana-pct{font-size:13.5px;font-weight:800;width:42px;text-align:right;font-variant-numeric:tabular-nums;flex-shrink:0;}
+.hg-ana-streak{font-size:11.5px;font-weight:800;color:#d97757;flex-shrink:0;font-variant-numeric:tabular-nums;letter-spacing:-.02em;}
 
 /* wellness */
 .hg-wellcard{flex:1;min-width:270px;}
@@ -305,6 +310,13 @@ export default function HabitGameDashboard() {
     } catch (e) {}
   }, [projects, habits, completions, wellness, loaded]);
 
+  // ESC 로 열려 있는 모달 닫기
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') { setAddingHabit(false); setEditingHabitId(null); setProjModal(false); } };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const days = useMemo(() => Array.from({ length: daysInMonth }, (_, i) => {
     const d = i + 1, wd = new Date(year, month, d).getDay();
@@ -321,6 +333,16 @@ export default function HabitGameDashboard() {
     return { goal, completed, left: Math.max(0, goal - completed), pct: goal ? Math.round((completed / goal) * 100) : 0 };
   };
 
+  // 오늘(또는 어제)부터 거슬러 올라가며 연속으로 체크한 날 수. 오늘 아직 체크 안 했으면 어제부터 계산.
+  const streakOf = (id) => {
+    const c = today0();
+    const done = () => isDone(completions, id, keyOf(c.getFullYear(), c.getMonth(), c.getDate()));
+    if (!done()) c.setDate(c.getDate() - 1);
+    let n = 0;
+    while (done()) { n++; c.setDate(c.getDate() - 1); }
+    return n;
+  };
+
   const visibleHabits = active === 'all' ? habits : habits.filter((h) => h.projectId === active);
   const stats = statsFor(visibleHabits);
   const activeColor = active === 'all' ? '#163a30' : (getProject(active)?.color || '#163a30');
@@ -333,7 +355,7 @@ export default function HabitGameDashboard() {
   }, [days, visibleHabits, completions]);
   const analysis = useMemo(() => visibleHabits.map((h) => {
     const actual = days.filter((d) => isDone(completions, h.id, d.key)).length;
-    return { ...h, actual, pct: daysInMonth ? Math.round((actual / daysInMonth) * 100) : 0, color: habitColor(h) };
+    return { ...h, actual, streak: streakOf(h.id), pct: daysInMonth ? Math.round((actual / daysInMonth) * 100) : 0, color: habitColor(h) };
   }), [visibleHabits, completions, days, daysInMonth, projects]);
   const ranked = useMemo(() => [...analysis].sort((a, b) => b.pct - a.pct || b.actual - a.actual).slice(0, 10), [analysis]);
 
@@ -354,17 +376,22 @@ export default function HabitGameDashboard() {
   const saveHabit = () => {
     if (!hName.trim()) return;
     if (editingHabitId) setHabits((p) => p.map((h) => h.id === editingHabitId ? { ...h, name: hName.trim(), emoji: hEmoji, projectId: hProject } : h));
-    else { if (!hProject) return; setHabits((p) => [...p, { id: 'h' + Date.now(), name: hName.trim(), emoji: hEmoji, projectId: hProject }]); }
+    else { if (!hProject) return; setHabits((p) => [...p, { id: uid('h'), name: hName.trim(), emoji: hEmoji, projectId: hProject }]); }
     setAddingHabit(false); setEditingHabitId(null);
   };
-  const delHabit = (id) => { setHabits((p) => p.filter((h) => h.id !== id)); setCompletions((p) => { const c = { ...p }; delete c[id]; return c; }); };
+  const delHabit = (id) => {
+    const h = habits.find((x) => x.id === id);
+    if (!window.confirm(`“${h ? h.name : '이 습관'}”을(를) 삭제할까요? 체크 기록도 함께 지워지고 되돌릴 수 없어요.`)) return;
+    setHabits((p) => p.filter((x) => x.id !== id));
+    setCompletions((p) => { const c = { ...p }; delete c[id]; return c; });
+  };
 
   const openAddProject = () => { setEditId(null); setPName(''); setPEmoji('🌱'); setPColor(PROJECT_COLORS[projects.length % PROJECT_COLORS.length]); setPHorizon('장기'); setProjModal(true); };
   const openEditProject = (p) => { setEditId(p.id); setPName(p.name); setPEmoji(p.emoji); setPColor(p.color); setPHorizon(p.horizon); setProjModal(true); };
   const saveProject = () => {
     if (!pName.trim()) return;
     if (editId) setProjects((ps) => ps.map((p) => p.id === editId ? { ...p, name: pName.trim(), emoji: pEmoji, color: pColor, horizon: pHorizon } : p));
-    else setProjects((ps) => [...ps, { id: 'p' + Date.now(), name: pName.trim(), emoji: pEmoji, color: pColor, horizon: pHorizon }]);
+    else setProjects((ps) => [...ps, { id: uid('p'), name: pName.trim(), emoji: pEmoji, color: pColor, horizon: pHorizon }]);
     setProjModal(false);
   };
   const delProject = (id) => {
@@ -404,7 +431,7 @@ export default function HabitGameDashboard() {
   const logKey = keyOf(year, month, Math.min(logDay, daysInMonth));
   const curLog = wellness[logKey] || {};
   const setMood = (v) => setWellness((p) => ({ ...p, [logKey]: { ...p[logKey], mood: v } }));
-  const setSleep = (delta) => setWellness((p) => { const cur = (p[logKey] && p[logKey].sleep) || 7; const v = Math.max(0, Math.min(14, +(cur + delta).toFixed(1))); return { ...p, [logKey]: { ...p[logKey], sleep: v } }; });
+  const setSleep = (delta) => setWellness((p) => { const cur = (p[logKey] && p[logKey].sleep) ?? 7; const v = Math.max(0, Math.min(14, +(cur + delta).toFixed(1))); return { ...p, [logKey]: { ...p[logKey], sleep: v } }; });
   const MOODS = ['😞', '😕', '🙂', '😀', '🤩'];
   const dayCol = `198px repeat(${daysInMonth}, 30px)`;
   // B(하단 탭) = 연도 선택. 올해 기준 범위에 현재 선택 연도를 항상 포함.
@@ -605,6 +632,7 @@ export default function HabitGameDashboard() {
                     <span className="hg-ana-dot" style={{ background: a.color }} />
                     <span className="hg-ana-em">{a.emoji}</span>
                     <span className="hg-ana-nm">{a.name}</span>
+                    {a.streak >= 2 && <span className="hg-ana-streak" title={`${a.streak}일 연속 달성 중`}>🔥{a.streak}</span>}
                     <span className="hg-ana-bar"><span className="hg-ana-fill" style={{ width: `${a.pct}%`, background: a.color }} /></span>
                     <span className="hg-ana-pct">{a.pct}%</span>
                   </div>
