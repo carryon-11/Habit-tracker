@@ -542,8 +542,8 @@ export default function HabitGameDashboard() {
           </div>
           <div className="hg-topctl">
             <input ref={fileInputRef} type="file" accept="application/json,.json" style={{ display: 'none' }} onChange={importData} />
-            <button className="hg-btn ghost" onClick={() => fileInputRef.current && fileInputRef.current.click()} title="백업 파일 불러오기"><Upload size={16} />가져오기</button>
-            <button className="hg-btn ghost" onClick={exportData} title="기록을 파일로 저장"><Download size={16} />내보내기</button>
+            <button className="hg-btn ghost" onClick={() => fileInputRef.current && fileInputRef.current.click()} title="백업 파일 불러오기"><Download size={16} />가져오기</button>
+            <button className="hg-btn ghost" onClick={exportData} title="기록을 파일로 저장"><Upload size={16} />내보내기</button>
             <button className="hg-btn ghost" onClick={() => setThemeModal(true)} title="색상 테마"><Palette size={16} />테마</button>
             <button className="hg-btn ghost" onClick={reset}><RotateCcw size={16} />초기화</button>
             <button className="hg-btn primary" onClick={openAddHabit}><Plus size={18} />습관 추가</button>
