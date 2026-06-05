@@ -3,7 +3,7 @@ import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, ResponsiveContainer, Tooltip
 } from 'recharts';
-import { Crown, Check, Plus, Trash2, X, ChevronLeft, ChevronRight, Moon, Smile, RotateCcw, Pencil, Download, Upload } from 'lucide-react';
+import { Crown, Check, Plus, Trash2, X, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Moon, Smile, RotateCcw, Pencil, Download, Upload } from 'lucide-react';
 
 /* ---------------- helpers ---------------- */
 const pad = (n) => String(n).padStart(2, '0');
@@ -160,6 +160,8 @@ const CSS = `
 .hg-gr-actbtn{border:none;background:none;cursor:pointer;width:26px;height:26px;border-radius:7px;display:grid;place-items:center;color:var(--faint);transition:.14s;}
 .hg-gr-actbtn.edit:hover{background:#eaf2e0;color:var(--green);}
 .hg-gr-actbtn.del:hover{background:#fbe3e3;color:#cf4f52;}
+.hg-gr-actbtn:disabled{opacity:.25;cursor:default;}
+.hg-gr-actbtn:disabled:hover{background:none;color:var(--faint);}
 .hg-cellwrap{display:grid;place-items:center;height:42px;}
 .hg-cellwrap.wknd{background:var(--wknd);}
 .hg-cellwrap.today{background:var(--todaycol);}
@@ -281,6 +283,7 @@ export default function HabitGameDashboard() {
   const [pColor, setPColor] = useState(PROJECT_COLORS[0]);
   const [pHorizon, setPHorizon] = useState('장기');
   const fileInputRef = useRef(null);
+  const [dialog, setDialog] = useState(null); // 커스텀 확인/알림 모달 (네이티브 confirm/alert가 Electron 입력 포커스를 깨뜨리는 문제 회피)
 
   // Desktop app: data lives in a real file (window.habitStore via Electron),
   // which survives browser/cookie clearing. Falls back to localStorage on the web.
@@ -312,7 +315,7 @@ export default function HabitGameDashboard() {
 
   // ESC 로 열려 있는 모달 닫기
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') { setAddingHabit(false); setEditingHabitId(null); setProjModal(false); } };
+    const onKey = (e) => { if (e.key === 'Escape') { setAddingHabit(false); setEditingHabitId(null); setProjModal(false); setDialog(null); } };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
@@ -381,10 +384,23 @@ export default function HabitGameDashboard() {
   };
   const delHabit = (id) => {
     const h = habits.find((x) => x.id === id);
-    if (!window.confirm(`“${h ? h.name : '이 습관'}”을(를) 삭제할까요? 체크 기록도 함께 지워지고 되돌릴 수 없어요.`)) return;
-    setHabits((p) => p.filter((x) => x.id !== id));
-    setCompletions((p) => { const c = { ...p }; delete c[id]; return c; });
+    askConfirm(`“${h ? h.name : '이 습관'}”을(를) 삭제할까요? 체크 기록도 함께 지워지고 되돌릴 수 없어요.`, () => {
+      setHabits((p) => p.filter((x) => x.id !== id));
+      setCompletions((p) => { const c = { ...p }; delete c[id]; return c; });
+    });
   };
+  // 같은 계획 안에서 습관 순서를 위/아래로 이동 (dir: -1 위, +1 아래)
+  const moveHabit = (id, dir) => setHabits((hs) => {
+    const idx = hs.findIndex((h) => h.id === id);
+    if (idx < 0) return hs;
+    const pid = hs[idx].projectId;
+    let j = idx + dir;
+    while (j >= 0 && j < hs.length && hs[j].projectId !== pid) j += dir;
+    if (j < 0 || j >= hs.length) return hs;
+    const next = [...hs];
+    [next[idx], next[j]] = [next[j], next[idx]];
+    return next;
+  });
 
   const openAddProject = () => { setEditId(null); setPName(''); setPEmoji('🌱'); setPColor(PROJECT_COLORS[projects.length % PROJECT_COLORS.length]); setPHorizon('장기'); setProjModal(true); };
   const openEditProject = (p) => { setEditId(p.id); setPName(p.name); setPEmoji(p.emoji); setPColor(p.color); setPHorizon(p.horizon); setProjModal(true); };
@@ -394,13 +410,15 @@ export default function HabitGameDashboard() {
     else setProjects((ps) => [...ps, { id: uid('p'), name: pName.trim(), emoji: pEmoji, color: pColor, horizon: pHorizon }]);
     setProjModal(false);
   };
-  const delProject = (id) => {
-    if (!window.confirm('이 계획을 삭제할까요? 포함된 습관은 “미분류”로 이동돼요.')) return;
+  // Electron에선 네이티브 confirm/alert가 이후 입력 포커스를 깨뜨려서(초기화·삭제 뒤 입력 안 되는 버그) 커스텀 모달로 대체.
+  const askConfirm = (message, onConfirm, confirmLabel = '삭제') => setDialog({ message, onConfirm, confirmLabel });
+  const showAlert = (message) => setDialog({ message, alert: true });
+  const delProject = (id) => askConfirm('이 계획을 삭제할까요? 포함된 습관은 “미분류”로 이동돼요.', () => {
     setProjects((ps) => ps.filter((p) => p.id !== id));
     setHabits((hs) => hs.map((h) => h.projectId === id ? { ...h, projectId: null } : h));
     if (active === id) setActive('all');
-  };
-  const reset = () => { if (window.confirm('모든 계획·습관·기록을 삭제할까요? 되돌릴 수 없어요.')) { setProjects([]); setHabits([]); setCompletions({}); setWellness({}); setActive('all'); } };
+  });
+  const reset = () => askConfirm('모든 계획·습관·기록을 삭제할까요? 되돌릴 수 없어요.', () => { setProjects([]); setHabits([]); setCompletions({}); setWellness({}); setActive('all'); });
 
   const exportData = () => {
     const data = { version: 1, exportedAt: new Date().toISOString(), projects, habits, completions, wellness };
@@ -419,10 +437,11 @@ export default function HabitGameDashboard() {
     reader.onload = () => {
       try {
         const d = JSON.parse(reader.result);
-        if (!Array.isArray(d.habits) || !Array.isArray(d.projects)) { window.alert('올바른 백업 파일이 아니에요.'); return; }
-        if (!window.confirm('지금 기록을 이 백업 파일 내용으로 덮어쓸까요? 되돌릴 수 없어요.')) return;
-        setProjects(d.projects); setHabits(d.habits); setCompletions(d.completions || {}); setWellness(d.wellness || {}); setActive('all');
-      } catch (err) { window.alert('파일을 읽을 수 없어요.'); }
+        if (!Array.isArray(d.habits) || !Array.isArray(d.projects)) { showAlert('올바른 백업 파일이 아니에요.'); return; }
+        askConfirm('지금 기록을 이 백업 파일 내용으로 덮어쓸까요? 되돌릴 수 없어요.', () => {
+          setProjects(d.projects); setHabits(d.habits); setCompletions(d.completions || {}); setWellness(d.wellness || {}); setActive('all');
+        }, '덮어쓰기');
+      } catch (err) { showAlert('파일을 읽을 수 없어요.'); }
     };
     reader.readAsText(file);
     e.target.value = '';
@@ -452,12 +471,16 @@ export default function HabitGameDashboard() {
 
   const habitRow = (h, color) => {
     const c = color || habitColor(h);
+    const siblings = habits.filter((x) => x.projectId === h.projectId);
+    const si = siblings.findIndex((x) => x.id === h.id);
     return (
       <div key={h.id} className="hg-grid-row" style={{ gridTemplateColumns: dayCol }}>
         <div className="hg-gr-name" style={{ borderLeft: `4px solid ${c}` }}>
           <span className="hg-gr-em">{h.emoji}</span>
           <span className="hg-gr-nm hg-clickable" onClick={() => openEditHabit(h)} title="이름·아이콘·계획 편집">{h.name}</span>
           <span className="hg-gr-acts">
+            <button className="hg-gr-actbtn" onClick={() => moveHabit(h.id, -1)} disabled={si <= 0} aria-label="위로 이동"><ChevronUp size={14} /></button>
+            <button className="hg-gr-actbtn" onClick={() => moveHabit(h.id, 1)} disabled={si >= siblings.length - 1} aria-label="아래로 이동"><ChevronDown size={14} /></button>
             <button className="hg-gr-actbtn edit" onClick={() => openEditHabit(h)} aria-label="편집"><Pencil size={14} /></button>
             <button className="hg-gr-actbtn del" onClick={() => delHabit(h.id)} aria-label="삭제"><Trash2 size={14} /></button>
           </span>
@@ -742,6 +765,19 @@ export default function HabitGameDashboard() {
             <div className="hg-ml">색상</div>
             <div className="hg-colrow">{PROJECT_COLORS.map((c) => <button key={c} className={`hg-col ${pColor === c ? 'on' : ''}`} style={{ background: c, color: c }} onClick={() => setPColor(c)} />)}</div>
             <button className="hg-btn primary" style={{ width: '100%', justifyContent: 'center', padding: 15, fontSize: 16 }} onClick={saveProject} disabled={!pName.trim()}>{editId ? '저장하기' : <><Plus size={19} />계획 추가</>}</button>
+          </div>
+        </div>
+      )}
+
+      {dialog && (
+        <div className="hg-ov" onClick={() => setDialog(null)}>
+          <div className="hg-modal" style={{ maxWidth: 400 }} onClick={(e) => e.stopPropagation()}>
+            <div className="hg-mt" style={{ marginBottom: 14 }}>{dialog.alert ? '알림' : '확인'}</div>
+            <div style={{ fontSize: 15, color: 'var(--muted)', fontWeight: 600, lineHeight: 1.6, marginBottom: 24, whiteSpace: 'pre-wrap' }}>{dialog.message}</div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              {!dialog.alert && <button className="hg-btn ghost" style={{ flex: 1, justifyContent: 'center', padding: 13 }} onClick={() => setDialog(null)}>취소</button>}
+              <button className="hg-btn primary" style={{ flex: 1, justifyContent: 'center', padding: 13 }} onClick={() => { const cb = dialog.onConfirm; setDialog(null); if (cb) cb(); }}>{dialog.alert ? '확인' : (dialog.confirmLabel || '확인')}</button>
+            </div>
           </div>
         </div>
       )}
