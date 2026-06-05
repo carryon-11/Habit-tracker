@@ -3,7 +3,7 @@ import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, ResponsiveContainer, Tooltip, LabelList
 } from 'recharts';
-import { Crown, Check, Plus, Trash2, X, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Moon, Smile, RotateCcw, Pencil, Download, Upload, Palette, RefreshCw } from 'lucide-react';
+import { Crown, Check, Plus, Trash2, X, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Moon, Smile, RotateCcw, Pencil, Download, Upload, Palette, RefreshCw, GripVertical } from 'lucide-react';
 import pkg from '../package.json';
 
 /* ---------------- helpers ---------------- */
@@ -167,7 +167,13 @@ const CSS = `
 .hg-grp-label{position:absolute;top:0;bottom:0;display:flex;align-items:center;gap:8px;padding-left:8px;white-space:nowrap;transition:left .6s cubic-bezier(.3,.7,.3,1);}
 .hg-grid-row{border-bottom:1px solid var(--line);}
 .hg-grid-row:last-child{border-bottom:none;}
-.hg-gr-name{position:sticky;left:0;z-index:2;background:var(--card);padding:0 13px;height:42px;display:flex;align-items:center;gap:9px;border-right:1px solid var(--line);}
+.hg-gr-name{position:sticky;left:0;z-index:2;background:var(--card);padding:0 13px 0 17px;height:42px;display:flex;align-items:center;gap:9px;border-right:1px solid var(--line);cursor:grab;}
+.hg-gr-name:active{cursor:grabbing;}
+.hg-gr-grip{position:absolute;left:2px;top:0;height:100%;display:grid;place-items:center;color:var(--line2);opacity:0;transition:opacity .15s;pointer-events:none;}
+.hg-grid-row:hover .hg-gr-grip{opacity:1;}
+.hg-grid-row.hg-dragging{opacity:.4;}
+.hg-gr-name.drop-before{box-shadow:inset 0 3px 0 0 var(--green);}
+.hg-gr-name.drop-after{box-shadow:inset 0 -3px 0 0 var(--green);}
 .hg-grid-row:hover .hg-gr-name{background:#f7f9f2;}
 .hg-gr-em{font-size:17px;flex-shrink:0;}
 .hg-gr-nm{font-size:14.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;}
@@ -475,6 +481,64 @@ export default function HabitGameDashboard() {
     return next;
   });
 
+  // ── 드래그로 습관 순서 변경 (행 핸들을 끌어다 놓기) ──────────
+  // 시각 효과(끌리는 행 흐림/드롭 위치선)는 리렌더 없이 DOM 클래스로 직접 처리해 큰 그리드에서도 매끄럽게.
+  const dragIdRef = useRef(null);
+  const dropRef = useRef(null); // { el, after }
+  const clearDrop = () => {
+    if (dropRef.current && dropRef.current.el) dropRef.current.el.classList.remove('drop-before', 'drop-after');
+    dropRef.current = null;
+  };
+  // 끌어온 습관을 target 위/아래로 옮김. 다른 계획의 행에 놓으면 그 계획으로 이동(projectId 변경).
+  const reorderHabit = (dragId, targetId, after) => setHabits((hs) => {
+    if (dragId === targetId) return hs;
+    const from = hs.findIndex((h) => h.id === dragId);
+    const tIdx = hs.findIndex((h) => h.id === targetId);
+    if (from < 0 || tIdx < 0) return hs;
+    const targetPid = hs[tIdx].projectId;
+    const next = hs.slice();
+    const moved = { ...next[from], projectId: targetPid }; // 새 객체로(불변성 유지)
+    next.splice(from, 1);
+    let at = next.findIndex((h) => h.id === targetId);
+    if (after) at += 1;
+    next.splice(at, 0, moved);
+    return next;
+  });
+  const onHabitDragStart = (e, h) => {
+    dragIdRef.current = h.id;
+    e.dataTransfer.effectAllowed = 'move';
+    try { e.dataTransfer.setData('text/plain', h.id); } catch (err) {} // 일부 브라우저는 데이터 필요
+    const row = e.currentTarget.closest('.hg-grid-row');
+    if (row) row.classList.add('hg-dragging');
+  };
+  const onHabitDragOver = (e, h) => {
+    if (!dragIdRef.current || dragIdRef.current === h.id) return;
+    e.preventDefault(); // 드롭 허용
+    e.dataTransfer.dropEffect = 'move';
+    const row = e.currentTarget; // .hg-grid-row 전체가 드롭 영역
+    const nameEl = row.querySelector('.hg-gr-name'); // 위치선은 항상 보이는 이름칸에 표시
+    const r = row.getBoundingClientRect();
+    const after = e.clientY > r.top + r.height / 2;
+    if (dropRef.current && dropRef.current.el !== nameEl) clearDrop();
+    if (nameEl) { nameEl.classList.toggle('drop-after', after); nameEl.classList.toggle('drop-before', !after); }
+    dropRef.current = { el: nameEl, after };
+  };
+  const onHabitDrop = (e, h) => {
+    if (!dragIdRef.current) return;
+    e.preventDefault();
+    const after = dropRef.current ? dropRef.current.after : false;
+    const dragId = dragIdRef.current;
+    clearDrop();
+    reorderHabit(dragId, h.id, after);
+  };
+  const onHabitDragEnd = (e) => {
+    clearDrop();
+    const row = e.currentTarget.closest('.hg-grid-row');
+    if (row) row.classList.remove('hg-dragging');
+    document.querySelectorAll('.hg-grid-row.hg-dragging').forEach((r) => r.classList.remove('hg-dragging'));
+    dragIdRef.current = null;
+  };
+
   const openAddProject = () => { setEditId(null); setPName(''); setPEmoji('🌱'); setPColor(PROJECT_COLORS[projects.length % PROJECT_COLORS.length]); setPHorizon('장기'); setProjModal(true); };
   const openEditProject = (p) => { setEditId(p.id); setPName(p.name); setPEmoji(p.emoji); setPColor(p.color); setPHorizon(p.horizon); setProjModal(true); };
   const saveProject = () => {
@@ -560,8 +624,9 @@ export default function HabitGameDashboard() {
     const siblings = habits.filter((x) => x.projectId === h.projectId);
     const si = siblings.findIndex((x) => x.id === h.id);
     return (
-      <div key={h.id} className="hg-grid-row" style={{ gridTemplateColumns: dayCol }}>
-        <div className="hg-gr-name" style={{ borderLeft: `4px solid ${c}` }}>
+      <div key={h.id} className="hg-grid-row" style={{ gridTemplateColumns: dayCol }} onDragOver={(e) => onHabitDragOver(e, h)} onDrop={(e) => onHabitDrop(e, h)}>
+        <div className="hg-gr-name" style={{ borderLeft: `4px solid ${c}` }} draggable onDragStart={(e) => onHabitDragStart(e, h)} onDragEnd={onHabitDragEnd} title="드래그해서 순서 변경">
+          <span className="hg-gr-grip" aria-hidden="true"><GripVertical size={14} /></span>
           <span className="hg-gr-em">{h.emoji}</span>
           <span className="hg-gr-nm hg-clickable" onClick={() => openEditHabit(h)} title="이름·아이콘·계획 편집">{h.name}</span>
           <span className="hg-gr-acts">
