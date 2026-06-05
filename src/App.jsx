@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
-  XAxis, YAxis, ResponsiveContainer, Tooltip
+  XAxis, YAxis, ResponsiveContainer, Tooltip, LabelList
 } from 'recharts';
 import { Crown, Check, Plus, Trash2, X, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Moon, Smile, RotateCcw, Pencil, Download, Upload, Palette } from 'lucide-react';
 import pkg from '../package.json';
@@ -597,10 +597,12 @@ export default function HabitGameDashboard() {
             <div className="hg-head">Daily Progress <span className="hg-hsub">일별 완료 수</span></div>
             <div className="hg-body" style={{ height: 158, padding: '12px 8px' }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={dailyData} margin={{ top: 4, right: 2, left: 2, bottom: 0 }}>
+                <BarChart data={dailyData} margin={{ top: 16, right: 2, left: 2, bottom: 0 }}>
                   <XAxis dataKey="label" tick={{ fill: '#6b766d', fontSize: 11 }} axisLine={false} tickLine={false} interval={3} />
                   <Tooltip cursor={{ fill: 'rgba(22,58,48,.06)' }} content={<ChartTip suffix="개" />} />
-                  <Bar dataKey="v" fill={activeColor} radius={[3, 3, 0, 0]} maxBarSize={13} />
+                  <Bar dataKey="v" fill={activeColor} radius={[3, 3, 0, 0]} maxBarSize={13}>
+                    <LabelList dataKey="v" position="top" formatter={(v) => (v > 0 ? v : '')} fontSize={9} fill="#586259" />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -610,10 +612,12 @@ export default function HabitGameDashboard() {
             <div className="hg-head">Weekly</div>
             <div className="hg-body" style={{ height: 158, padding: '12px 8px' }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={weeklyData} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
+                <BarChart data={weeklyData} margin={{ top: 16, right: 4, left: 4, bottom: 0 }}>
                   <XAxis dataKey="label" tick={{ fill: '#6b766d', fontSize: 12 }} axisLine={false} tickLine={false} />
                   <Tooltip cursor={{ fill: 'rgba(22,58,48,.06)' }} content={<ChartTip suffix="개" />} />
-                  <Bar dataKey="v" fill={activeColor} radius={[4, 4, 0, 0]} maxBarSize={28} />
+                  <Bar dataKey="v" fill={activeColor} radius={[4, 4, 0, 0]} maxBarSize={28}>
+                    <LabelList dataKey="v" position="top" formatter={(v) => (v > 0 ? v : '')} fontSize={11} fill="#586259" />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
