@@ -373,11 +373,18 @@ export default function HabitGameDashboard() {
   const stats = statsFor(visibleHabits);
   const activeColor = active === 'all' ? th.primary : (getProject(active)?.color || th.primary);
 
-  const dailyData = useMemo(() => days.map((d) => ({ label: String(d.d), v: visibleHabits.filter((h) => isDone(completions, h.id, d.key)).length })), [days, visibleHabits, completions]);
+  const dailyData = useMemo(() => {
+    const hc = visibleHabits.length;
+    return days.map((d) => {
+      const done = visibleHabits.filter((h) => isDone(completions, h.id, d.key)).length;
+      return { label: String(d.d), v: hc ? Math.round((done / hc) * 100) : 0 };
+    });
+  }, [days, visibleHabits, completions]);
   const weeklyData = useMemo(() => {
-    const w = []; let wi = 0;
-    days.forEach((d, idx) => { if (idx > 0 && d.wd === 1) wi++; if (w[wi] === undefined) w[wi] = 0; w[wi] += visibleHabits.filter((h) => isDone(completions, h.id, d.key)).length; });
-    return w.map((v, i) => ({ label: `${i + 1}주`, v }));
+    const sums = [], cnts = []; let wi = 0;
+    days.forEach((d, idx) => { if (idx > 0 && d.wd === 1) wi++; if (sums[wi] === undefined) { sums[wi] = 0; cnts[wi] = 0; } sums[wi] += visibleHabits.filter((h) => isDone(completions, h.id, d.key)).length; cnts[wi] += 1; });
+    const hc = visibleHabits.length;
+    return sums.map((s, i) => ({ label: `${i + 1}주`, v: hc ? Math.round((s / (hc * cnts[i])) * 100) : 0 }));
   }, [days, visibleHabits, completions]);
   const analysis = useMemo(() => visibleHabits.map((h) => {
     const actual = days.filter((d) => isDone(completions, h.id, d.key)).length;
@@ -594,29 +601,29 @@ export default function HabitGameDashboard() {
           </div>
 
           <div className="hg-card hg-chart">
-            <div className="hg-head">Daily Progress <span className="hg-hsub">일별 완료 수</span></div>
+            <div className="hg-head">Daily Progress <span className="hg-hsub">일별 달성률</span></div>
             <div className="hg-body" style={{ height: 158, padding: '12px 8px' }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={dailyData} margin={{ top: 16, right: 2, left: 2, bottom: 0 }}>
                   <XAxis dataKey="label" tick={{ fill: '#6b766d', fontSize: 11 }} axisLine={false} tickLine={false} interval={3} />
-                  <Tooltip cursor={{ fill: 'rgba(22,58,48,.06)' }} content={<ChartTip suffix="개" />} />
-                  <Bar dataKey="v" fill={activeColor} radius={[3, 3, 0, 0]} maxBarSize={13}>
-                    <LabelList dataKey="v" position="top" formatter={(v) => (v > 0 ? v : '')} fontSize={9} fill="#586259" />
-                  </Bar>
+                  <YAxis domain={[0, 100]} hide />
+                  <Tooltip cursor={{ fill: 'rgba(22,58,48,.06)' }} content={<ChartTip suffix="%" />} />
+                  <Bar dataKey="v" fill={activeColor} radius={[3, 3, 0, 0]} maxBarSize={13} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
 
           <div className="hg-card hg-chart" style={{ flex: '0 0 210px', minWidth: 190 }}>
-            <div className="hg-head">Weekly</div>
+            <div className="hg-head">Weekly <span className="hg-hsub">주별 달성률</span></div>
             <div className="hg-body" style={{ height: 158, padding: '12px 8px' }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={weeklyData} margin={{ top: 16, right: 4, left: 4, bottom: 0 }}>
                   <XAxis dataKey="label" tick={{ fill: '#6b766d', fontSize: 12 }} axisLine={false} tickLine={false} />
-                  <Tooltip cursor={{ fill: 'rgba(22,58,48,.06)' }} content={<ChartTip suffix="개" />} />
+                  <YAxis domain={[0, 100]} hide />
+                  <Tooltip cursor={{ fill: 'rgba(22,58,48,.06)' }} content={<ChartTip suffix="%" />} />
                   <Bar dataKey="v" fill={activeColor} radius={[4, 4, 0, 0]} maxBarSize={28}>
-                    <LabelList dataKey="v" position="top" formatter={(v) => (v > 0 ? v : '')} fontSize={11} fill="#586259" />
+                    <LabelList dataKey="v" position="top" formatter={(v) => (v > 0 ? v + '%' : '')} fontSize={11} fill="#586259" />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
