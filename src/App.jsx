@@ -110,6 +110,8 @@ const CSS = `
 .hg-ystep{display:flex;align-items:center;gap:10px;margin-top:18px;background:rgba(255,255,255,.13);border-radius:12px;padding:8px;}
 .hg-ystep button{width:34px;height:34px;border-radius:9px;border:none;background:rgba(255,255,255,.18);color:#fff;cursor:pointer;display:grid;place-items:center;transition:.18s;}
 .hg-ystep button:hover{background:rgba(255,255,255,.32);}
+.hg-ystep button:disabled{opacity:.3;cursor:default;}
+.hg-ystep button:disabled:hover{background:rgba(255,255,255,.18);}
 .hg-ystep .v{flex:1;text-align:center;font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;}
 
 .hg-statcol{flex:0 0 264px;min-width:240px;}
@@ -405,6 +407,13 @@ export default function HabitGameDashboard() {
   const setSleep = (delta) => setWellness((p) => { const cur = (p[logKey] && p[logKey].sleep) || 7; const v = Math.max(0, Math.min(14, +(cur + delta).toFixed(1))); return { ...p, [logKey]: { ...p[logKey], sleep: v } }; });
   const MOODS = ['😞', '😕', '🙂', '😀', '🤩'];
   const dayCol = `198px repeat(${daysInMonth}, 30px)`;
+  // B(하단 탭) = 연도 선택. 올해 기준 범위에 현재 선택 연도를 항상 포함.
+  const years = (() => {
+    const base = t.getFullYear();
+    const s = new Set([year]);
+    for (let yy = base - 4; yy <= base + 1; yy++) s.add(yy);
+    return [...s].sort((a, b) => a - b);
+  })();
 
   const navStyle = (color, on) => ({
     borderTop: on ? `1.5px solid ${color}` : '1px solid var(--line)',
@@ -490,12 +499,12 @@ export default function HabitGameDashboard() {
             <div>
               <div className="hg-set-t">{active === 'all' ? 'ALL PLANS' : getProject(active)?.horizon + ' 계획'}</div>
               <div className="hg-set-m">{MONTHS[month]}</div>
-              <div className="hg-set-y">{active === 'all' ? '전체' : getProject(active)?.name} · {visibleHabits.length}개</div>
+              <div className="hg-set-y">{year}년 · {active === 'all' ? '전체' : getProject(active)?.name} · {visibleHabits.length}개</div>
             </div>
             <div className="hg-ystep">
-              <button onClick={() => setYear((y) => y - 1)}><ChevronLeft size={18} /></button>
-              <span className="v">{year}</span>
-              <button onClick={() => setYear((y) => y + 1)}><ChevronRight size={18} /></button>
+              <button onClick={() => setMonth((m) => Math.max(0, m - 1))} disabled={month === 0} aria-label="이전 달"><ChevronLeft size={18} /></button>
+              <span className="v">{MONTHS[month]}</span>
+              <button onClick={() => setMonth((m) => Math.min(11, m + 1))} disabled={month === 11} aria-label="다음 달"><ChevronRight size={18} /></button>
             </div>
           </div>
 
@@ -654,7 +663,7 @@ export default function HabitGameDashboard() {
         </div>
 
         <div className="hg-tabs">
-          {MONTHS.map((m, i) => (<button key={i} className={`hg-mtab ${month === i ? 'on' : ''}`} onClick={() => setMonth(i)}>{m}</button>))}
+          {years.map((y) => (<button key={y} className={`hg-mtab ${year === y ? 'on' : ''}`} onClick={() => setYear(y)}>{y}년</button>))}
         </div>
       </div>
 
