@@ -351,7 +351,7 @@ export default function HabitGameDashboard() {
 
   const getProject = (id) => projects.find((p) => p.id === id);
   const habitColor = (h) => { const p = getProject(h.projectId); return p ? p.color : '#9aa49c'; };
-  const sortedProjects = useMemo(() => [...projects].sort((a, b) => (HORIZON_ORDER[a.horizon] ?? 9) - (HORIZON_ORDER[b.horizon] ?? 9)), [projects]);
+  const sortedProjects = projects; // 사용자가 정한 순서(배열 순서) 그대로 — ◀▶ 로 재정렬
 
   const statsFor = (list) => {
     const goal = list.length * daysInMonth;
@@ -422,6 +422,15 @@ export default function HabitGameDashboard() {
     if (j < 0 || j >= hs.length) return hs;
     const next = [...hs];
     [next[idx], next[j]] = [next[j], next[idx]];
+    return next;
+  });
+  // 계획(프로젝트) 순서를 앞/뒤로 이동 (dir: -1 앞, +1 뒤)
+  const moveProject = (id, dir) => setProjects((ps) => {
+    const i = ps.findIndex((p) => p.id === id);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= ps.length) return ps;
+    const next = [...ps];
+    [next[i], next[j]] = [next[j], next[i]];
     return next;
   });
 
@@ -549,12 +558,14 @@ export default function HabitGameDashboard() {
             <div className="hg-nc-cnt">{habits.length}개 습관 · {projects.length}개 계획</div>
           </button>
 
-          {sortedProjects.map((p) => {
+          {sortedProjects.map((p, idx) => {
             const ps = statsFor(habits.filter((h) => h.projectId === p.id));
             const cnt = habits.filter((h) => h.projectId === p.id).length;
             return (
               <div key={p.id} className="hg-navcard" style={navStyle(p.color, active === p.id)} onClick={() => setActive(p.id)} role="button">
                 <div className="hg-nc-actions">
+                  {idx > 0 && <span className="hg-nc-act" onClick={(e) => { e.stopPropagation(); moveProject(p.id, -1); }} title="앞으로 이동"><ChevronLeft size={13} /></span>}
+                  {idx < sortedProjects.length - 1 && <span className="hg-nc-act" onClick={(e) => { e.stopPropagation(); moveProject(p.id, 1); }} title="뒤로 이동"><ChevronRight size={13} /></span>}
                   <span className="hg-nc-act" onClick={(e) => { e.stopPropagation(); openEditProject(p); }}><Pencil size={13} /></span>
                   <span className="hg-nc-act" onClick={(e) => { e.stopPropagation(); delProject(p.id); }}><Trash2 size={13} /></span>
                 </div>
