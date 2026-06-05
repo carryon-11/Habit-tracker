@@ -57,9 +57,11 @@ app.whenReady().then(() => {
 
   // 자동 업데이트: 새 버전이 릴리스되면 백그라운드로 받아 다음 실행 때 적용.
   // 개발 모드나 미서명 맥에서는 자동으로 건너뜀(에러는 로그만 남기고 무시).
+  let updateTimer = null;
   autoUpdater.on('error', (err) => console.error('autoUpdater:', err ? (err.stack || err).toString() : 'unknown error'));
   // 다운로드가 끝나면 눈에 띄는 안내 + 즉시 재시작 옵션 (조용히 끝나 사용자가 못 알아채는 문제 방지)
   autoUpdater.on('update-downloaded', (info) => {
+    if (updateTimer) { clearInterval(updateTimer); updateTimer = null; } // 이미 받았으면 반복 확인 중단
     const win = BrowserWindow.getAllWindows()[0];
     const opts = {
       type: 'info',
@@ -75,6 +77,8 @@ app.whenReady().then(() => {
       .catch(() => {});
   });
   autoUpdater.checkForUpdates();
+  // 실행 중에도 1시간마다 자동 확인 (앱을 안 꺼도 새 버전이 제때 감지됨)
+  updateTimer = setInterval(() => autoUpdater.checkForUpdates(), 60 * 60 * 1000);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
