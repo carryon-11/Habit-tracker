@@ -150,7 +150,7 @@ const CSS = `
 .hg-gh-day.wknd{color:var(--lime2);}
 .hg-gh-wd{font-size:10.5px;font-weight:600;opacity:.8;}
 .hg-gh-dn{font-size:14px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:2px;}
-.hg-gh-day.today .hg-gh-dn{background:var(--lime);color:var(--green);border-radius:7px;padding:1px 3px;min-width:21px;}
+.hg-gh-day.today .hg-gh-dn{background:var(--lime);color:var(--green);border-radius:7px;padding:1px 3px;min-width:21px;text-align:center;}
 .hg-grp-head{border-bottom:1px solid var(--line);}
 .hg-grp-name{position:sticky;left:0;z-index:2;background:#fff;height:36px;display:flex;align-items:center;gap:9px;padding:0 13px;border-right:1px solid var(--line);}
 .hg-grp-em{font-size:16px;}
