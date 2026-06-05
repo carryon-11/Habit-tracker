@@ -157,8 +157,9 @@ const CSS = `
 .hg-grp-nm{font-size:14px;font-weight:800;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .hg-grp-badge{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:99px;white-space:nowrap;position:relative;z-index:1;}
 .hg-grp-pct{font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;position:relative;z-index:1;}
-.hg-grp-meta{grid-column:2 / -1;position:relative;display:flex;align-items:center;gap:10px;padding-left:14px;min-width:0;overflow:hidden;}
+.hg-grp-meta{grid-column:2 / -1;position:relative;min-width:0;overflow:hidden;}
 .hg-grp-fill{position:absolute;left:0;top:0;bottom:0;opacity:.2;transition:width .6s cubic-bezier(.3,.7,.3,1);pointer-events:none;}
+.hg-grp-label{position:absolute;top:0;bottom:0;display:flex;align-items:center;gap:8px;padding-left:8px;white-space:nowrap;transition:left .6s cubic-bezier(.3,.7,.3,1);}
 .hg-grid-row{border-bottom:1px solid var(--line);}
 .hg-grid-row:last-child{border-bottom:none;}
 .hg-gr-name{position:sticky;left:0;z-index:2;background:var(--card);padding:0 13px;height:42px;display:flex;align-items:center;gap:9px;border-right:1px solid var(--line);}
@@ -683,8 +684,10 @@ export default function HabitGameDashboard() {
                             </div>
                             <div className="hg-grp-meta">
                               <div className="hg-grp-fill" style={{ width: `${gs.pct}%`, background: col }} />
-                              {g.project && <span className="hg-grp-badge" style={{ background: col + '1e', color: col }}>{g.project.horizon}</span>}
-                              <span className="hg-grp-pct" style={{ color: col }}>{gs.pct}%</span>
+                              <div className="hg-grp-label" style={{ left: `min(${gs.pct}%, calc(100% - 96px))` }}>
+                                {g.project && <span className="hg-grp-badge" style={{ background: col + '1e', color: col }}>{g.project.horizon}</span>}
+                                <span className="hg-grp-pct" style={{ color: col }}>{gs.pct}%</span>
+                              </div>
                             </div>
                           </div>
                         )}
