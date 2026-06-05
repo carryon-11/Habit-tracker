@@ -3,7 +3,7 @@ import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, ResponsiveContainer, Tooltip
 } from 'recharts';
-import { Crown, Check, Plus, Trash2, X, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Moon, Smile, RotateCcw, Pencil, Download, Upload } from 'lucide-react';
+import { Crown, Check, Plus, Trash2, X, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Moon, Smile, RotateCcw, Pencil, Download, Upload, Palette } from 'lucide-react';
 import pkg from '../package.json';
 
 /* ---------------- helpers ---------------- */
@@ -17,6 +17,15 @@ const PROJECT_COLORS = ['#2f9e6f', '#5b7fb9', '#c98b2e', '#b5566a', '#7d6bc9', '
 const HORIZONS = ['장기', '중기', '단기'];
 const HORIZON_ORDER = { '장기': 0, '중기': 1, '단기': 2 };
 const STORAGE_KEY = 'habit-game-dashboard-v2';
+
+// 색상 테마 (강조색만 바꾸는 라이트 기반). primary=짙은 브랜드색, accent=밝은 포인트색.
+const THEMES = {
+  green:  { name: '포레스트', primary: '#163a30', primary2: '#1f4d40', accent: '#8ed14f', accent2: '#b6e077', page: '#e7eae1', wknd: '#f1f3eb', today: 'rgba(142,209,79,.2)' },
+  blue:   { name: '오션',     primary: '#143a4a', primary2: '#1d5066', accent: '#46b3d4', accent2: '#84d3e6', page: '#e5ecef', wknd: '#eef3f5', today: 'rgba(70,179,212,.2)' },
+  purple: { name: '그레이프', primary: '#2d2150', primary2: '#3f3070', accent: '#9d7fd6', accent2: '#c1a8ea', page: '#eae7f1', wknd: '#f1eef7', today: 'rgba(157,127,214,.2)' },
+  amber:  { name: '선셋',     primary: '#4a3115', primary2: '#6b481f', accent: '#e0982f', accent2: '#efbd6b', page: '#efe9e0', wknd: '#f5f0e7', today: 'rgba(224,152,47,.2)' },
+  rose:   { name: '로즈',     primary: '#4a1d2c', primary2: '#6b2c42', accent: '#d65583', accent2: '#ec84ab', page: '#efe6ea', wknd: '#f6eef2', today: 'rgba(214,85,131,.2)' },
+};
 
 // 같은 밀리초에 연속으로 추가해도 충돌하지 않는 고유 id (prefix + 시각 + 카운터)
 let uidCounter = 0;
@@ -244,6 +253,14 @@ const CSS = `
 .hg-pchip:hover{background:#f0f3ea;}
 .hg-pchip .dot{width:12px;height:12px;border-radius:99px;flex-shrink:0;}
 .hg-pchip .bdg{margin-left:auto;font-size:11.5px;font-weight:700;color:var(--muted);}
+.hg-themegrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
+.hg-themecard{display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:13px;border:1px solid var(--line2);background:#fafbf7;cursor:pointer;font-family:var(--ui);transition:.16s;text-align:left;}
+.hg-themecard:hover{background:#f0f3ea;}
+.hg-themecard.on{border-color:var(--green);background:#eaf2e0;}
+.hg-themeswatch{display:flex;flex-shrink:0;}
+.hg-themeswatch span{width:22px;height:22px;border-radius:99px;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.15);}
+.hg-themeswatch span:last-child{margin-left:-9px;}
+.hg-themename{font-size:14.5px;font-weight:700;color:var(--ink);}
 
 @keyframes hgFade{from{opacity:0;}to{opacity:1;}}
 @keyframes hgPop{from{opacity:0;transform:translateY(16px) scale(.98);}to{opacity:1;transform:none;}}
@@ -285,6 +302,10 @@ export default function HabitGameDashboard() {
   const [pHorizon, setPHorizon] = useState('장기');
   const fileInputRef = useRef(null);
   const [dialog, setDialog] = useState(null); // 커스텀 확인/알림 모달 (네이티브 confirm/alert가 Electron 입력 포커스를 깨뜨리는 문제 회피)
+  const [theme, setTheme] = useState('green');
+  const [themeModal, setThemeModal] = useState(false);
+  const th = THEMES[theme] || THEMES.green;
+  const pageStyle = { '--green': th.primary, '--green2': th.primary2, '--lime': th.accent, '--lime2': th.accent2, '--page': th.page, '--wknd': th.wknd, '--todaycol': th.today };
 
   // Desktop app: data lives in a real file (window.habitStore via Electron),
   // which survives browser/cookie clearing. Falls back to localStorage on the web.
@@ -299,6 +320,7 @@ export default function HabitGameDashboard() {
       if (dead) return;
       if (d && Array.isArray(d.habits) && Array.isArray(d.projects)) {
         setProjects(d.projects); setHabits(d.habits); setCompletions(d.completions || {}); setWellness(d.wellness || {});
+        if (d.theme && THEMES[d.theme]) setTheme(d.theme);
       } else { const s = seedData(); setProjects(s.projects); setHabits(s.habits); setCompletions(s.completions); setWellness(s.wellness); }
       setLoaded(true);
     })();
@@ -307,12 +329,12 @@ export default function HabitGameDashboard() {
 
   useEffect(() => {
     if (!loaded) return;
-    const data = { projects, habits, completions, wellness };
+    const data = { projects, habits, completions, wellness, theme };
     try {
       if (window.habitStore) window.habitStore.save(data);
       else localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch (e) {}
-  }, [projects, habits, completions, wellness, loaded]);
+  }, [projects, habits, completions, wellness, theme, loaded]);
 
   // ESC 로 열려 있는 모달 닫기
   useEffect(() => {
@@ -349,7 +371,7 @@ export default function HabitGameDashboard() {
 
   const visibleHabits = active === 'all' ? habits : habits.filter((h) => h.projectId === active);
   const stats = statsFor(visibleHabits);
-  const activeColor = active === 'all' ? '#163a30' : (getProject(active)?.color || '#163a30');
+  const activeColor = active === 'all' ? th.primary : (getProject(active)?.color || th.primary);
 
   const dailyData = useMemo(() => days.map((d) => ({ label: String(d.d), v: visibleHabits.filter((h) => isDone(completions, h.id, d.key)).length })), [days, visibleHabits, completions]);
   const weeklyData = useMemo(() => {
@@ -422,7 +444,7 @@ export default function HabitGameDashboard() {
   const reset = () => askConfirm('모든 계획·습관·기록을 삭제할까요? 되돌릴 수 없어요.', () => { setProjects([]); setHabits([]); setCompletions({}); setWellness({}); setActive('all'); });
 
   const exportData = () => {
-    const data = { version: 1, exportedAt: new Date().toISOString(), projects, habits, completions, wellness };
+    const data = { version: 1, exportedAt: new Date().toISOString(), projects, habits, completions, wellness, theme };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -440,7 +462,7 @@ export default function HabitGameDashboard() {
         const d = JSON.parse(reader.result);
         if (!Array.isArray(d.habits) || !Array.isArray(d.projects)) { showAlert('올바른 백업 파일이 아니에요.'); return; }
         askConfirm('지금 기록을 이 백업 파일 내용으로 덮어쓸까요? 되돌릴 수 없어요.', () => {
-          setProjects(d.projects); setHabits(d.habits); setCompletions(d.completions || {}); setWellness(d.wellness || {}); setActive('all');
+          setProjects(d.projects); setHabits(d.habits); setCompletions(d.completions || {}); setWellness(d.wellness || {}); if (d.theme && THEMES[d.theme]) setTheme(d.theme); setActive('all');
         }, '덮어쓰기');
       } catch (err) { showAlert('파일을 읽을 수 없어요.'); }
     };
@@ -501,28 +523,29 @@ export default function HabitGameDashboard() {
   };
 
   return (
-    <div className="hg-page">
+    <div className="hg-page" style={pageStyle}>
       <style>{CSS}</style>
       <div className="hg-wrap">
         <div className="hg-top">
           <div className="hg-brand">
-            <div className="hg-logo"><Crown size={26} color="#8ed14f" fill="#8ed14f" /></div>
+            <div className="hg-logo"><Crown size={26} color={th.accent} fill={th.accent} /></div>
             <div className="hg-bname">HABIT GAME<small>PLAN-BASED HABIT TRACKER · v{pkg.version}</small></div>
           </div>
           <div className="hg-topctl">
             <input ref={fileInputRef} type="file" accept="application/json,.json" style={{ display: 'none' }} onChange={importData} />
             <button className="hg-btn ghost" onClick={() => fileInputRef.current && fileInputRef.current.click()} title="백업 파일 불러오기"><Upload size={16} />가져오기</button>
             <button className="hg-btn ghost" onClick={exportData} title="기록을 파일로 저장"><Download size={16} />내보내기</button>
+            <button className="hg-btn ghost" onClick={() => setThemeModal(true)} title="색상 테마"><Palette size={16} />테마</button>
             <button className="hg-btn ghost" onClick={reset}><RotateCcw size={16} />초기화</button>
             <button className="hg-btn primary" onClick={openAddHabit}><Plus size={18} />습관 추가</button>
           </div>
         </div>
 
         <div className="hg-nav">
-          <button className="hg-navcard" style={navStyle('#163a30', active === 'all')} onClick={() => setActive('all')}>
+          <button className="hg-navcard" style={navStyle(th.primary, active === 'all')} onClick={() => setActive('all')}>
             <div className="hg-nc-top"><span className="hg-nc-em">📊</span><span className="hg-nc-nm">전체</span></div>
-            <div className="hg-nc-meta"><span style={{ fontSize: 12.5, color: 'var(--muted)', fontWeight: 600 }}>모든 계획</span><span className="hg-nc-pct" style={{ color: '#163a30' }}>{statsFor(habits).pct}%</span></div>
-            <div className="hg-nc-bar"><div className="hg-nc-fill" style={{ width: `${statsFor(habits).pct}%`, background: '#163a30' }} /></div>
+            <div className="hg-nc-meta"><span style={{ fontSize: 12.5, color: 'var(--muted)', fontWeight: 600 }}>모든 계획</span><span className="hg-nc-pct" style={{ color: th.primary }}>{statsFor(habits).pct}%</span></div>
+            <div className="hg-nc-bar"><div className="hg-nc-fill" style={{ width: `${statsFor(habits).pct}%`, background: th.primary }} /></div>
             <div className="hg-nc-cnt">{habits.length}개 습관 · {projects.length}개 계획</div>
           </button>
 
@@ -674,8 +697,8 @@ export default function HabitGameDashboard() {
                   <XAxis dataKey="label" tick={{ fill: '#6b766d', fontSize: 11 }} axisLine={false} tickLine={false} interval={3} />
                   <YAxis yAxisId="s" domain={[0, 14]} hide /><YAxis yAxisId="m" domain={[0, 5]} hide />
                   <Tooltip content={<ChartTip />} />
-                  <Line yAxisId="m" type="monotone" dataKey="mood" name="무드" stroke="#7bbf3f" strokeWidth={3} dot={false} connectNulls />
-                  <Line yAxisId="s" type="monotone" dataKey="sleep" name="수면" stroke="#163a30" strokeWidth={3} dot={false} connectNulls />
+                  <Line yAxisId="m" type="monotone" dataKey="mood" name="무드" stroke={th.accent} strokeWidth={3} dot={false} connectNulls />
+                  <Line yAxisId="s" type="monotone" dataKey="sleep" name="수면" stroke={th.primary} strokeWidth={3} dot={false} connectNulls />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -778,6 +801,22 @@ export default function HabitGameDashboard() {
             <div style={{ display: 'flex', gap: 10 }}>
               {!dialog.alert && <button className="hg-btn ghost" style={{ flex: 1, justifyContent: 'center', padding: 13 }} onClick={() => setDialog(null)}>취소</button>}
               <button className="hg-btn primary" style={{ flex: 1, justifyContent: 'center', padding: 13 }} onClick={() => { const cb = dialog.onConfirm; setDialog(null); if (cb) cb(); }}>{dialog.alert ? '확인' : (dialog.confirmLabel || '확인')}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {themeModal && (
+        <div className="hg-ov" onMouseDown={(e) => { if (e.target === e.currentTarget) setThemeModal(false); }}>
+          <div className="hg-modal" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
+            <div className="hg-mh"><div className="hg-mt">색상 테마</div><button className="hg-mx" onClick={() => setThemeModal(false)}><X size={19} /></button></div>
+            <div className="hg-themegrid">
+              {Object.entries(THEMES).map(([k, tm]) => (
+                <button key={k} className={`hg-themecard ${theme === k ? 'on' : ''}`} onClick={() => { setTheme(k); setThemeModal(false); }}>
+                  <span className="hg-themeswatch"><span style={{ background: tm.primary }} /><span style={{ background: tm.accent }} /></span>
+                  <span className="hg-themename">{tm.name}</span>
+                </button>
+              ))}
             </div>
           </div>
         </div>
