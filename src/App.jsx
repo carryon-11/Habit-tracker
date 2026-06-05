@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, ResponsiveContainer, Tooltip, LabelList
@@ -12,7 +12,18 @@ const keyOf = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`;
 const today0 = () => { const x = new Date(); x.setHours(0, 0, 0, 0); return x; };
 const KWD = ['일', '월', '화', '수', '목', '금', '토'];
 const MONTHS = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
-const EMOJIS = ['⏰', '🏃', '📚', '🗒️', '💻', '🚫', '🧘', '🤸', '💧', '🥗', '🌙', '🚿', '📓', '🎯', '🙏', '📵', '💰', '🎨', '🌱', '🚀', '💡', '❤️', '🎓', '🏆', '💪', '🚴', '🏊', '🚶', '⚽', '🧗', '🍎', '🥦', '🍳', '☕', '🍵', '🚭', '🪥', '💊', '🧴', '😴', '🎵', '✍️', '🗣️', '📷', '📅', '📈', '🧹', '🛒'];
+// 분류별 아이콘 (분류 안에서도 비슷한 것끼리 가깝게 배치)
+const EMOJI_CATS = [
+  { name: '운동·신체', emojis: ['🏃', '🚶', '🚴', '🚵', '🧗', '🏊', '🏄', '⛸️', '🤸', '🤾', '🏋️', '💪', '⚽', '🏀', '🏐', '🏈', '⚾', '🎾', '🏸', '🏓', '🥊', '🧘'] },
+  { name: '건강·관리', emojis: ['💧', '💊', '🩺', '🌡️', '🩹', '🦷', '🪥', '🚿', '🛁', '🧴', '🧼', '😴', '🌙', '🛌', '⚖️', '❤️', '🫀', '🧠', '🩸'] },
+  { name: '식습관', emojis: ['🍎', '🍌', '🍇', '🥗', '🥦', '🥕', '🥑', '🍳', '🍚', '🍱', '🥛', '🧃', '☕', '🍵', '🚱', '🚭', '🚫', '🍷', '🍺', '🧂', '🍫', '🍰'] },
+  { name: '공부·일', emojis: ['📚', '📖', '✍️', '📝', '🗒️', '📒', '📓', '💻', '⌨️', '🖥️', '💡', '🔬', '🧮', '📊', '📈', '🎓', '🗓️', '📅', '📌', '🔖', '🗣️', '🔢'] },
+  { name: '마음·휴식', emojis: ['🙏', '😌', '😊', '🥰', '💭', '🕯️', '☮️', '🌿', '🍃', '📿', '💗', '🌸', '🌈', '✨', '🎧'] },
+  { name: '생활·집안', emojis: ['🧹', '🧺', '🧽', '🛒', '💰', '🪙', '💳', '🪴', '🌱', '🐶', '🐱', '🔧', '🧻', '🏠', '📦', '🗑️', '🔑', '📵', '⏰', '☀️'] },
+  { name: '취미·예술', emojis: ['🎨', '🖌️', '🎵', '🎸', '🎹', '🥁', '🎤', '📷', '🎬', '🎮', '🕹️', '🧩', '♟️', '🎯', '🎲', '✏️', '🧶', '🎭'] },
+  { name: '자연·기타', emojis: ['🌳', '🌲', '🌻', '⭐', '🔥', '💎', '🏆', '🥇', '🎖️', '✅', '🚀', '🌍', '💯', '📍', '🎁', '🔔'] },
+];
+const EMOJIS = EMOJI_CATS.flatMap((c) => c.emojis); // 평면 목록(기본값 등 호환용)
 const PROJECT_COLORS = ['#2f9e6f', '#5b7fb9', '#c98b2e', '#b5566a', '#7d6bc9', '#3aa6a0', '#d97757', '#558b2f'];
 const HORIZONS = ['장기', '중기', '단기'];
 const HORIZON_ORDER = { '장기': 0, '중기': 1, '단기': 2 };
@@ -111,7 +122,10 @@ const CSS = `
 .hg-nc-actions{position:absolute;top:9px;right:9px;display:flex;gap:4px;opacity:0;transition:.15s;}
 .hg-navcard:hover .hg-nc-actions{opacity:1;}
 .hg-nc-act{width:24px;height:24px;border-radius:7px;border:none;background:rgba(255,255,255,.88);color:var(--muted);cursor:pointer;display:grid;place-items:center;}
-.hg-nc-act:hover{background:#fff;color:var(--ink);}
+.hg-nc-act:hover{background:#fff;color:var(--ink);box-shadow:0 2px 7px -1px rgba(0,0,0,.22);}
+.hg-nc-act.mv:hover{color:#3a5b8c;}
+.hg-nc-act.edit:hover{color:var(--green);}
+.hg-nc-act.del:hover{color:#cf4f52;}
 .hg-navadd{flex:0 0 122px;min-width:122px;border-radius:14px;border:1.5px dashed var(--line2);background:transparent;color:var(--muted);font-size:14px;font-weight:700;font-family:var(--ui);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:.16s;}
 .hg-navadd:hover{border-color:var(--green);color:var(--green);background:rgba(22,58,48,.04);}
 
@@ -151,6 +165,9 @@ const CSS = `
 .hg-grid-head,.hg-grid-row,.hg-grp-head{display:grid;align-items:center;}
 .hg-grid-head{background:var(--green);position:sticky;top:0;z-index:3;}
 .hg-gh-corner{position:sticky;left:0;z-index:4;background:var(--green);color:#fff;font-size:12.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:11px 13px;display:flex;align-items:center;height:100%;}
+.hg-colresize{position:absolute;top:0;right:0;width:9px;height:100%;cursor:col-resize;z-index:6;display:flex;align-items:center;justify-content:center;touch-action:none;}
+.hg-colresize::after{content:'';width:2px;height:54%;border-radius:2px;background:rgba(255,255,255,.4);transition:.15s;}
+.hg-colresize:hover::after,.hg-colresize:active::after{background:#fff;height:74%;width:3px;}
 .hg-gh-day{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:7px 0;color:#fff;}
 .hg-gh-day.wknd{color:var(--lime2);}
 .hg-gh-wd{font-size:10.5px;font-weight:600;opacity:.8;}
@@ -182,6 +199,7 @@ const CSS = `
 .hg-gr-acts{position:absolute;right:6px;top:0;height:100%;display:flex;align-items:center;gap:3px;opacity:0;transition:.15s;padding-left:22px;background:linear-gradient(90deg,rgba(247,249,242,0),#f7f9f2 42%);}
 .hg-grid-row:hover .hg-gr-acts{opacity:1;}
 .hg-gr-actbtn{border:none;background:none;cursor:pointer;width:26px;height:26px;border-radius:7px;display:grid;place-items:center;color:var(--faint);transition:.14s;}
+.hg-gr-actbtn:hover{background:#e6ecf5;color:#3a5b8c;}
 .hg-gr-actbtn.edit:hover{background:#eaf2e0;color:var(--green);}
 .hg-gr-actbtn.del:hover{background:#fbe3e3;color:#cf4f52;}
 .hg-gr-actbtn:disabled{opacity:.25;cursor:default;}
@@ -252,7 +270,11 @@ const CSS = `
 .hg-ml{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;}
 .hg-mi{width:100%;padding:14px 16px;border-radius:13px;border:1px solid var(--line2);background:#fafbf7;color:var(--ink);font-size:16px;font-family:var(--ui);font-weight:600;outline:none;transition:.18s;margin-bottom:20px;}
 .hg-mi:focus{border-color:var(--green);background:#fff;}
-.hg-emg{display:grid;grid-template-columns:repeat(8,1fr);gap:7px;margin-bottom:20px;}
+.hg-empick{max-height:248px;overflow-y:auto;margin-bottom:20px;padding-right:6px;}
+.hg-emcat{margin-bottom:12px;}
+.hg-emcat:last-child{margin-bottom:0;}
+.hg-emcat-lab{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.04em;margin-bottom:7px;position:sticky;top:0;background:#fff;padding:3px 0;z-index:1;}
+.hg-emg{display:grid;grid-template-columns:repeat(8,1fr);gap:7px;}
 .hg-emc{aspect-ratio:1;border-radius:11px;border:1px solid var(--line);background:#fafbf7;font-size:19px;cursor:pointer;display:grid;place-items:center;transition:.14s;}
 .hg-emc:hover{background:#f0f3ea;}
 .hg-emc.on{border-color:var(--green);background:#eaf2e0;transform:scale(1.06);}
@@ -322,6 +344,7 @@ export default function HabitGameDashboard() {
   const [updBusy, setUpdBusy] = useState(false); // 확인/다운로드 중
   const updUserRef = useRef(false);              // 사용자가 직접 '확인'을 눌렀는지(자동 백그라운드 체크는 조용히)
   const canUpdate = typeof window !== 'undefined' && !!window.habitUpdater; // 데스크탑(Electron)에서만 버튼 노출
+  const [nameColW, setNameColW] = useState(198); // 습관 이름칸 너비(드래그로 조절, 저장됨)
   const th = THEMES[theme] || THEMES.green;
   const pageStyle = { '--green': th.primary, '--green2': th.primary2, '--lime': th.accent, '--lime2': th.accent2, '--page': th.page, '--wknd': th.wknd, '--todaycol': th.today };
 
@@ -339,6 +362,7 @@ export default function HabitGameDashboard() {
       if (d && Array.isArray(d.habits) && Array.isArray(d.projects)) {
         setProjects(d.projects); setHabits(d.habits); setCompletions(d.completions || {}); setWellness(d.wellness || {});
         if (d.theme && THEMES[d.theme]) setTheme(d.theme);
+        if (typeof d.nameColW === 'number') setNameColW(Math.max(150, Math.min(400, d.nameColW)));
       } else { const s = seedData(); setProjects(s.projects); setHabits(s.habits); setCompletions(s.completions); setWellness(s.wellness); }
       setLoaded(true);
     })();
@@ -347,12 +371,12 @@ export default function HabitGameDashboard() {
 
   useEffect(() => {
     if (!loaded) return;
-    const data = { projects, habits, completions, wellness, theme };
+    const data = { projects, habits, completions, wellness, theme, nameColW };
     try {
       if (window.habitStore) window.habitStore.save(data);
       else localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch (e) {}
-  }, [projects, habits, completions, wellness, theme, loaded]);
+  }, [projects, habits, completions, wellness, theme, nameColW, loaded]);
 
   // ESC 로 열려 있는 모달 닫기
   useEffect(() => {
@@ -431,6 +455,30 @@ export default function HabitGameDashboard() {
     return { ...h, actual, streak: streakOf(h.id), pct: daysInMonth ? Math.round((actual / daysInMonth) * 100) : 0, color: habitColor(h) };
   }), [visibleHabits, completions, days, daysInMonth, projects]);
   const ranked = useMemo(() => [...analysis].sort((a, b) => b.pct - a.pct || b.actual - a.actual).slice(0, 10), [analysis]);
+
+  // Top 10 순위가 바뀔 때 FLIP 기법으로 부드럽게 이동(툭 바뀌지 않게).
+  const topListRef = useRef(null);
+  const topPosRef = useRef(new Map());
+  useLayoutEffect(() => {
+    const wrap = topListRef.current;
+    if (!wrap) return;
+    const rows = wrap.querySelectorAll('.hg-toprow');
+    const prev = topPosRef.current;
+    const next = new Map();
+    rows.forEach((r) => {
+      const id = r.getAttribute('data-id');
+      const top = r.offsetTop;
+      next.set(id, top);
+      if (prev.has(id)) {
+        const dy = prev.get(id) - top;
+        // Web Animations API: 이전 위치에서 새 위치로 미끄러지게. fill 없음이라 끝나면 자연 위치로(멈춰서 어긋날 일 없음).
+        if (dy && typeof r.animate === 'function') {
+          r.animate([{ transform: `translateY(${dy}px)` }, { transform: 'translateY(0)' }], { duration: 450, easing: 'cubic-bezier(.3,.8,.3,1)' });
+        }
+      }
+    });
+    topPosRef.current = next;
+  }, [ranked]);
 
   const wellData = useMemo(() => days.map((d) => { const w = wellness[d.key] || {}; return { label: String(d.d), mood: w.mood ?? null, sleep: w.sleep ?? null }; }), [days, wellness]);
   const donutData = [{ name: '완료', value: stats.completed }, { name: '남음', value: stats.goal === 0 ? 1 : stats.left }];
@@ -602,7 +650,48 @@ export default function HabitGameDashboard() {
   const setMood = (v) => setWellness((p) => ({ ...p, [logKey]: { ...p[logKey], mood: v } }));
   const setSleep = (delta) => setWellness((p) => { const cur = (p[logKey] && p[logKey].sleep) ?? 7; const v = Math.max(0, Math.min(14, +(cur + delta).toFixed(1))); return { ...p, [logKey]: { ...p[logKey], sleep: v } }; });
   const MOODS = ['😞', '😕', '🙂', '😀', '🤩'];
-  const dayCol = `198px repeat(${daysInMonth}, 30px)`;
+  // 이름칸 너비를 키우면 날짜칸이 그만큼 줄어들도록(전체 폭은 기준값 유지, 셀이 최소치에 닿으면 그때부터 스크롤).
+  const baseTotal = 198 + daysInMonth * 30;
+  const cellW = Math.max(20, (baseTotal - nameColW) / daysInMonth);
+  const dayCol = `var(--namecol) repeat(${daysInMonth}, var(--cellw))`;
+  const scrollRef = useRef(null);
+  const resizeRef = useRef(null);
+  const clampW = (v) => Math.max(150, Math.min(400, v));
+  const onColResizeDown = (e) => {
+    e.preventDefault();
+    resizeRef.current = { startX: e.clientX, startW: nameColW, w: nameColW };
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
+  };
+  const onColResizeMove = (e) => {
+    if (!resizeRef.current) return;
+    const w = clampW(resizeRef.current.startW + (e.clientX - resizeRef.current.startX));
+    resizeRef.current.w = w;
+    const cw = Math.max(20, (baseTotal - w) / daysInMonth);
+    if (scrollRef.current) { scrollRef.current.style.setProperty('--namecol', w + 'px'); scrollRef.current.style.setProperty('--cellw', cw + 'px'); }
+  };
+  const onColResizeUp = (e) => {
+    if (!resizeRef.current) return;
+    const w = resizeRef.current.w;
+    resizeRef.current = null;
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) {}
+    setNameColW(w); // 상태에 반영 → 저장
+  };
+
+  // 분류별 아이콘 선택기 (습관/계획 모달 공용)
+  const emojiPicker = (selected, onPick) => (
+    <div className="hg-empick">
+      {EMOJI_CATS.map((cat) => (
+        <div key={cat.name} className="hg-emcat">
+          <div className="hg-emcat-lab">{cat.name}</div>
+          <div className="hg-emg">
+            {cat.emojis.map((e) => (
+              <button key={e} type="button" className={`hg-emc ${selected === e ? 'on' : ''}`} onClick={() => onPick(e)}>{e}</button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
   // B(하단 탭) = 연도 선택. 올해 기준 범위에 현재 선택 연도를 항상 포함.
   const years = (() => {
     const base = t.getFullYear();
@@ -689,10 +778,10 @@ export default function HabitGameDashboard() {
             return (
               <div key={p.id} className="hg-navcard" style={navStyle(p.color, active === p.id)} onClick={() => setActive(p.id)} role="button">
                 <div className="hg-nc-actions">
-                  {idx > 0 && <span className="hg-nc-act" onClick={(e) => { e.stopPropagation(); moveProject(p.id, -1); }} title="앞으로 이동"><ChevronLeft size={13} /></span>}
-                  {idx < sortedProjects.length - 1 && <span className="hg-nc-act" onClick={(e) => { e.stopPropagation(); moveProject(p.id, 1); }} title="뒤로 이동"><ChevronRight size={13} /></span>}
-                  <span className="hg-nc-act" onClick={(e) => { e.stopPropagation(); openEditProject(p); }}><Pencil size={13} /></span>
-                  <span className="hg-nc-act" onClick={(e) => { e.stopPropagation(); delProject(p.id); }}><Trash2 size={13} /></span>
+                  {idx > 0 && <span className="hg-nc-act mv" onClick={(e) => { e.stopPropagation(); moveProject(p.id, -1); }} title="앞으로 이동"><ChevronLeft size={13} /></span>}
+                  {idx < sortedProjects.length - 1 && <span className="hg-nc-act mv" onClick={(e) => { e.stopPropagation(); moveProject(p.id, 1); }} title="뒤로 이동"><ChevronRight size={13} /></span>}
+                  <span className="hg-nc-act edit" onClick={(e) => { e.stopPropagation(); openEditProject(p); }} title="편집"><Pencil size={13} /></span>
+                  <span className="hg-nc-act del" onClick={(e) => { e.stopPropagation(); delProject(p.id); }} title="삭제"><Trash2 size={13} /></span>
                 </div>
                 <div className="hg-nc-top"><span className="hg-nc-em">{p.emoji}</span><span className="hg-nc-nm">{p.name}</span></div>
                 <div className="hg-nc-meta"><span className="hg-nc-badge" style={{ background: p.color + '1e', color: p.color }}>{p.horizon}</span><span className="hg-nc-pct" style={{ color: p.color }}>{ps.pct}%</span></div>
@@ -771,15 +860,17 @@ export default function HabitGameDashboard() {
         <div className="hg-row">
           <div className="hg-card hg-gridcard">
             <div className="hg-head">My Habits <span className="hg-hsub">{active === 'all' ? '계획별 보기' : getProject(active)?.name} · 이름 클릭 시 편집</span></div>
-            <div className="hg-scroll">
+            <div className="hg-scroll" ref={scrollRef} style={{ ['--namecol']: nameColW + 'px', ['--cellw']: cellW + 'px' }}>
               {visibleHabits.length === 0 ? (
                 <div style={{ padding: 44, textAlign: 'center', color: 'var(--muted)', fontWeight: 600, fontSize: 15 }}>
                   습관이 없어요. 오른쪽 위 “습관 추가”로 시작하세요.
                 </div>
               ) : (
-                <div style={{ minWidth: 198 + daysInMonth * 30 }}>
+                <div style={{ minWidth: `calc(var(--namecol) + ${daysInMonth} * var(--cellw))` }}>
                   <div className="hg-grid-head" style={{ gridTemplateColumns: dayCol }}>
-                    <div className="hg-gh-corner">습관</div>
+                    <div className="hg-gh-corner">습관
+                      <span className="hg-colresize" onPointerDown={onColResizeDown} onPointerMove={onColResizeMove} onPointerUp={onColResizeUp} title="드래그해서 이름칸 너비 조절" />
+                    </div>
                     {days.map((d) => (
                       <div key={d.d} className={`hg-gh-day ${d.weekend ? 'wknd' : ''} ${d.isToday ? 'today' : ''}`}>
                         <span className="hg-gh-wd">{KWD[d.wd]}</span><span className="hg-gh-dn">{d.d}</span>
@@ -867,10 +958,10 @@ export default function HabitGameDashboard() {
 
           <div className="hg-card hg-topcol">
             <div className="hg-head">Top 10 Habits</div>
-            <div className="hg-body">
+            <div className="hg-body" ref={topListRef}>
               {ranked.length === 0 ? <div style={{ color: 'var(--faint)', fontSize: 14, textAlign: 'center', padding: 22 }}>—</div> :
                 ranked.map((a, i) => (
-                  <div key={a.id} className="hg-toprow">
+                  <div key={a.id} data-id={a.id} className="hg-toprow">
                     <span className="hg-rank">{i + 1}</span>
                     <span className="hg-top-dot" style={{ background: a.color }} />
                     <span className="hg-gr-em" style={{ fontSize: 16 }}>{a.emoji}</span>
@@ -913,7 +1004,7 @@ export default function HabitGameDashboard() {
                 <div className="hg-ml">이름</div>
                 <input className="hg-mi" value={hName} onChange={(e) => setHName(e.target.value)} placeholder="예: 아침 스트레칭" onKeyDown={(e) => e.key === 'Enter' && saveHabit()} maxLength={20} autoFocus />
                 <div className="hg-ml">아이콘</div>
-                <div className="hg-emg">{EMOJIS.map((e) => <button key={e} className={`hg-emc ${hEmoji === e ? 'on' : ''}`} onClick={() => setHEmoji(e)}>{e}</button>)}</div>
+                {emojiPicker(hEmoji, setHEmoji)}
                 <button className="hg-btn primary" style={{ width: '100%', justifyContent: 'center', padding: 15, fontSize: 16 }} onClick={saveHabit} disabled={!hName.trim() || (!editingHabitId && !hProject)}>{editingHabitId ? '저장하기' : <><Plus size={19} />추가하기</>}</button>
               </>
             )}
@@ -930,7 +1021,7 @@ export default function HabitGameDashboard() {
             <div className="hg-ml">기간 · 규모</div>
             <div className="hg-seg">{HORIZONS.map((h) => <button key={h} className={pHorizon === h ? 'on' : ''} onClick={() => setPHorizon(h)}>{h}</button>)}</div>
             <div className="hg-ml">아이콘</div>
-            <div className="hg-emg">{EMOJIS.map((e) => <button key={e} className={`hg-emc ${pEmoji === e ? 'on' : ''}`} onClick={() => setPEmoji(e)}>{e}</button>)}</div>
+            {emojiPicker(pEmoji, setPEmoji)}
             <div className="hg-ml">색상</div>
             <div className="hg-colrow">{PROJECT_COLORS.map((c) => <button key={c} className={`hg-col ${pColor === c ? 'on' : ''}`} style={{ background: c, color: c }} onClick={() => setPColor(c)} />)}</div>
             <button className="hg-btn primary" style={{ width: '100%', justifyContent: 'center', padding: 15, fontSize: 16 }} onClick={saveProject} disabled={!pName.trim()}>{editId ? '저장하기' : <><Plus size={19} />계획 추가</>}</button>
