@@ -580,7 +580,7 @@ export default function HabitGameDashboard() {
         </div>
 
         <div className="hg-row">
-          <div className="hg-set" style={{ background: activeColor }}>
+          <div className="hg-set" style={{ background: th.primary }}>
             <div>
               <div className="hg-set-t">{active === 'all' ? 'ALL PLANS' : getProject(active)?.horizon + ' 계획'}</div>
               <div className="hg-set-m">{MONTHS[month]}</div>
