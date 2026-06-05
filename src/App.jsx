@@ -3,7 +3,7 @@ import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, ResponsiveContainer, Tooltip, LabelList
 } from 'recharts';
-import { Crown, Check, Plus, Trash2, X, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Moon, Smile, RotateCcw, Pencil, Download, Upload, Palette } from 'lucide-react';
+import { Crown, Check, Plus, Trash2, X, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Moon, Smile, RotateCcw, Pencil, Download, Upload, Palette, RefreshCw } from 'lucide-react';
 import pkg from '../package.json';
 
 /* ---------------- helpers ---------------- */
@@ -82,6 +82,11 @@ const CSS = `
 .hg-logo{width:50px;height:50px;border-radius:14px;background:var(--green);display:grid;place-items:center;}
 .hg-bname{font-size:25px;font-weight:800;line-height:.95;letter-spacing:-.04em;}
 .hg-bname small{display:block;font-size:11.5px;font-weight:600;letter-spacing:.16em;color:var(--muted);margin-top:5px;}
+.hg-upd-btn{display:inline-flex;align-items:center;gap:4px;margin-left:10px;padding:2px 9px;border:1px solid var(--line2);border-radius:99px;background:var(--card);color:var(--muted);font-size:10px;font-weight:700;letter-spacing:.02em;cursor:pointer;vertical-align:middle;transition:border-color .15s,color .15s;}
+.hg-upd-btn:hover:not(:disabled){border-color:var(--green);color:var(--green);}
+.hg-upd-btn:disabled{cursor:default;opacity:.85;}
+.hg-spin{animation:hg-spin .9s linear infinite;}
+@keyframes hg-spin{to{transform:rotate(360deg);}}
 .hg-topctl{display:flex;align-items:center;gap:10px;}
 .hg-btn{display:inline-flex;align-items:center;gap:8px;padding:11px 18px;border-radius:12px;border:1px solid var(--line2);background:var(--card);color:var(--ink);font-size:14.5px;font-weight:700;font-family:var(--ui);cursor:pointer;transition:.18s;}
 .hg-btn:hover{background:#f4f6ef;border-color:var(--green);}
@@ -307,6 +312,10 @@ export default function HabitGameDashboard() {
   const [dialog, setDialog] = useState(null); // 커스텀 확인/알림 모달 (네이티브 confirm/alert가 Electron 입력 포커스를 깨뜨리는 문제 회피)
   const [theme, setTheme] = useState('green');
   const [themeModal, setThemeModal] = useState(false);
+  const [updMsg, setUpdMsg] = useState('');      // 업데이트 확인 상태 텍스트
+  const [updBusy, setUpdBusy] = useState(false); // 확인/다운로드 중
+  const updUserRef = useRef(false);              // 사용자가 직접 '확인'을 눌렀는지(자동 백그라운드 체크는 조용히)
+  const canUpdate = typeof window !== 'undefined' && !!window.habitUpdater; // 데스크탑(Electron)에서만 버튼 노출
   const th = THEMES[theme] || THEMES.green;
   const pageStyle = { '--green': th.primary, '--green2': th.primary2, '--lime': th.accent, '--lime2': th.accent2, '--page': th.page, '--wknd': th.wknd, '--todaycol': th.today };
 
@@ -345,6 +354,28 @@ export default function HabitGameDashboard() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+
+  // 업데이트 상태를 메인 프로세스에서 받아 헤더 버튼에 표시.
+  // checking/latest/error 는 사용자가 직접 누른 경우에만 표시(자동 백그라운드 확인은 조용히),
+  // available/downloading/downloaded 는 실제 업데이트 진행이라 항상 표시.
+  useEffect(() => {
+    if (!window.habitUpdater || !window.habitUpdater.onStatus) return;
+    return window.habitUpdater.onStatus((s) => {
+      if (s.state === 'checking') { if (updUserRef.current) { setUpdBusy(true); setUpdMsg('확인 중…'); } }
+      else if (s.state === 'available') { setUpdBusy(true); setUpdMsg(`새 버전 v${s.version || ''} 받는 중…`); }
+      else if (s.state === 'downloading') { setUpdBusy(true); setUpdMsg(`받는 중 ${s.percent ?? 0}%`); }
+      else if (s.state === 'downloaded') { setUpdBusy(false); setUpdMsg('재시작하면 적용돼요 ✓'); updUserRef.current = false; }
+      else if (s.state === 'latest') { if (updUserRef.current) { setUpdBusy(false); setUpdMsg('이미 최신 버전이에요 ✓'); } updUserRef.current = false; }
+      else if (s.state === 'error') { if (updUserRef.current) { setUpdBusy(false); setUpdMsg('확인 실패 — 잠시 후 다시'); } updUserRef.current = false; }
+    });
+  }, []);
+
+  // 안내 문구(최신/실패)는 잠시 후 자동으로 지워 버튼을 기본 상태로 되돌림
+  useEffect(() => {
+    if (!updMsg || updBusy || updMsg.indexOf('재시작') >= 0) return;
+    const id = setTimeout(() => setUpdMsg(''), 4000);
+    return () => clearTimeout(id);
+  }, [updMsg, updBusy]);
 
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const days = useMemo(() => Array.from({ length: daysInMonth }, (_, i) => {
@@ -455,6 +486,19 @@ export default function HabitGameDashboard() {
   // Electron에선 네이티브 confirm/alert가 이후 입력 포커스를 깨뜨려서(초기화·삭제 뒤 입력 안 되는 버그) 커스텀 모달로 대체.
   const askConfirm = (message, onConfirm, confirmLabel = '삭제') => setDialog({ message, onConfirm, confirmLabel });
   const showAlert = (message) => setDialog({ message, alert: true });
+
+  // 헤더의 '업데이트 확인' 버튼 → 메인 프로세스에 즉시 확인 요청. 결과는 onStatus 이벤트가 이어받음.
+  const checkUpdate = async () => {
+    if (!window.habitUpdater || updBusy) return;
+    updUserRef.current = true;
+    setUpdBusy(true); setUpdMsg('확인 중…');
+    try {
+      const r = await window.habitUpdater.check();
+      if (r && r.mac) { updUserRef.current = false; setUpdBusy(false); setUpdMsg(''); showAlert('맥은 자동 업데이트가 지원되지 않아요. 릴리스 페이지에서 최신 .dmg를 받아 설치해 주세요.'); }
+      else if (r && r.ok === false) { updUserRef.current = false; setUpdBusy(false); setUpdMsg('확인 실패 — 잠시 후 다시'); }
+      // ok=true 인 경우는 onStatus 이벤트(checking→latest/available…)가 메시지를 이어받음
+    } catch (e) { updUserRef.current = false; setUpdBusy(false); setUpdMsg('확인 실패 — 잠시 후 다시'); }
+  };
   const delProject = (id) => askConfirm('이 계획을 삭제할까요? 포함된 습관은 “미분류”로 이동돼요.', () => {
     setProjects((ps) => ps.filter((p) => p.id !== id));
     setHabits((hs) => hs.map((h) => h.projectId === id ? { ...h, projectId: null } : h));
@@ -548,7 +592,13 @@ export default function HabitGameDashboard() {
         <div className="hg-top">
           <div className="hg-brand">
             <div className="hg-logo"><Crown size={26} color={th.accent} fill={th.accent} /></div>
-            <div className="hg-bname">HABIT GAME<small>PLAN-BASED HABIT TRACKER · v{pkg.version}</small></div>
+            <div className="hg-bname">HABIT GAME<small>PLAN-BASED HABIT TRACKER · v{pkg.version}
+              {canUpdate && (
+                <button className="hg-upd-btn" onClick={checkUpdate} disabled={updBusy} title="새 버전이 있는지 지금 확인">
+                  <RefreshCw size={12} className={updBusy ? 'hg-spin' : ''} />{updMsg || '업데이트 확인'}
+                </button>
+              )}
+            </small></div>
           </div>
           <div className="hg-topctl">
             <input ref={fileInputRef} type="file" accept="application/json,.json" style={{ display: 'none' }} onChange={importData} />
