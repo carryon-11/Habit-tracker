@@ -719,7 +719,7 @@ export default function HabitGameDashboard() {
       </div>
 
       {addingHabit && (
-        <div className="hg-ov" onClick={() => { setAddingHabit(false); setEditingHabitId(null); }}>
+        <div className="hg-ov" onMouseDown={(e) => { if (e.target === e.currentTarget) { setAddingHabit(false); setEditingHabitId(null); } }}>
           <div className="hg-modal" onClick={(e) => e.stopPropagation()}>
             <div className="hg-mh"><div className="hg-mt">{editingHabitId ? '습관 편집' : '새 습관 추가'}</div><button className="hg-mx" onClick={() => { setAddingHabit(false); setEditingHabitId(null); }}><X size={19} /></button></div>
             {!editingHabitId && sortedProjects.length === 0 ? (
@@ -753,7 +753,7 @@ export default function HabitGameDashboard() {
       )}
 
       {projModal && (
-        <div className="hg-ov" onClick={() => setProjModal(false)}>
+        <div className="hg-ov" onMouseDown={(e) => { if (e.target === e.currentTarget) setProjModal(false); }}>
           <div className="hg-modal" onClick={(e) => e.stopPropagation()}>
             <div className="hg-mh"><div className="hg-mt">{editId ? '계획 편집' : '새 계획 추가'}</div><button className="hg-mx" onClick={() => setProjModal(false)}><X size={19} /></button></div>
             <div className="hg-ml">계획 이름</div>
@@ -770,7 +770,7 @@ export default function HabitGameDashboard() {
       )}
 
       {dialog && (
-        <div className="hg-ov" onClick={() => setDialog(null)}>
+        <div className="hg-ov" onMouseDown={(e) => { if (e.target === e.currentTarget) setDialog(null); }}>
           <div className="hg-modal" style={{ maxWidth: 400 }} onClick={(e) => e.stopPropagation()}>
             <div className="hg-mt" style={{ marginBottom: 14 }}>{dialog.alert ? '알림' : '확인'}</div>
             <div style={{ fontSize: 15, color: 'var(--muted)', fontWeight: 600, lineHeight: 1.6, marginBottom: 24, whiteSpace: 'pre-wrap' }}>{dialog.message}</div>
