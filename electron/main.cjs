@@ -1,4 +1,5 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs');
 const fsp = fs.promises;
@@ -53,6 +54,12 @@ function createWindow() {
 
 app.whenReady().then(() => {
   createWindow();
+
+  // 자동 업데이트: 새 버전이 릴리스되면 백그라운드로 받아 다음 실행 때 적용.
+  // 개발 모드나 미서명 맥에서는 자동으로 건너뜀(에러는 로그만 남기고 무시).
+  autoUpdater.on('error', (err) => console.error('autoUpdater:', err ? (err.stack || err).toString() : 'unknown error'));
+  autoUpdater.checkForUpdatesAndNotify();
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });

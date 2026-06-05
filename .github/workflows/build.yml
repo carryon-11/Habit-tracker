@@ -11,6 +11,8 @@ on:
 
 jobs:
   build:
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
@@ -29,9 +31,11 @@ jobs:
       - name: Build app (renderer)
         run: npm run build
 
-      - name: Package installer
-        run: npx electron-builder --publish never
+      - name: Build & publish installer
+        run: npx electron-builder --publish always
         env:
+          # 릴리스 생성·업로드용 토큰 (electron-updater가 이 릴리스에서 새 버전을 찾음)
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # 코드 서명 인증서가 없으므로 맥 서명은 건너뜀 (서명 없는 dmg 생성)
           CSC_IDENTITY_AUTO_DISCOVERY: false
 

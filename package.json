@@ -1,7 +1,7 @@
 {
   "name": "habit-game-desktop",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
@@ -11,6 +11,7 @@
     "dist": "vite build && electron-builder"
   },
   "dependencies": {
+    "electron-updater": "^6.8.3",
     "lucide-react": "^0.383.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -30,6 +31,7 @@
     "directories": { "output": "release", "buildResources": "build" },
     "mac": { "target": [{ "target": "dmg", "arch": ["universal"] }], "category": "public.app-category.productivity" },
     "win": { "target": "nsis" },
-    "linux": { "target": "AppImage", "category": "Utility" }
+    "linux": { "target": "AppImage", "category": "Utility" },
+    "publish": [{ "provider": "github", "owner": "carryon-11", "repo": "Habit-tracker", "releaseType": "release" }]
   }
 }
