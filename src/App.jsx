@@ -4,6 +4,7 @@ import {
   XAxis, YAxis, ResponsiveContainer, Tooltip
 } from 'recharts';
 import { Crown, Check, Plus, Trash2, X, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Moon, Smile, RotateCcw, Pencil, Download, Upload } from 'lucide-react';
+import pkg from '../package.json';
 
 /* ---------------- helpers ---------------- */
 const pad = (n) => String(n).padStart(2, '0');
@@ -506,7 +507,7 @@ export default function HabitGameDashboard() {
         <div className="hg-top">
           <div className="hg-brand">
             <div className="hg-logo"><Crown size={26} color="#8ed14f" fill="#8ed14f" /></div>
-            <div className="hg-bname">HABIT GAME<small>PLAN-BASED HABIT TRACKER</small></div>
+            <div className="hg-bname">HABIT GAME<small>PLAN-BASED HABIT TRACKER · v{pkg.version}</small></div>
           </div>
           <div className="hg-topctl">
             <input ref={fileInputRef} type="file" accept="application/json,.json" style={{ display: 'none' }} onChange={importData} />
