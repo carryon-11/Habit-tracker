@@ -156,7 +156,8 @@ const CSS = `
 .hg-grp-em{font-size:16px;}
 .hg-grp-nm{font-size:14px;font-weight:800;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .hg-grp-badge{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:99px;white-space:nowrap;}
-.hg-grp-pct{font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;margin-left:auto;}
+.hg-grp-pct{font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;}
+.hg-grp-meta{grid-column:2 / -1;display:flex;align-items:center;gap:10px;padding-left:14px;min-width:0;}
 .hg-grid-row{border-bottom:1px solid var(--line);}
 .hg-grid-row:last-child{border-bottom:none;}
 .hg-gr-name{position:sticky;left:0;z-index:2;background:var(--card);padding:0 13px;height:42px;display:flex;align-items:center;gap:9px;border-right:1px solid var(--line);}
@@ -678,6 +679,8 @@ export default function HabitGameDashboard() {
                             <div className="hg-grp-name" style={{ borderLeft: `5px solid ${col}` }}>
                               <span className="hg-grp-em">{g.project ? g.project.emoji : '📁'}</span>
                               <span className="hg-grp-nm">{g.project ? g.project.name : '미분류'}</span>
+                            </div>
+                            <div className="hg-grp-meta">
                               {g.project && <span className="hg-grp-badge" style={{ background: col + '1e', color: col }}>{g.project.horizon}</span>}
                               <span className="hg-grp-pct" style={{ color: col }}>{gs.pct}%</span>
                             </div>
