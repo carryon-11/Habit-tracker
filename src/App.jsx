@@ -166,18 +166,15 @@ const CSS = `
 .hg-head .hg-hsub{font-weight:500;letter-spacing:.01em;opacity:.78;text-transform:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .hg-body{padding:15px;flex:1;}
 
-.hg-set{color:#fff;min-width:220px;flex:0 0 220px;border-radius:14px;padding:20px;display:flex;flex-direction:column;justify-content:space-between;transition:background .3s;}
+.hg-set{color:#fff;min-width:220px;flex:0 0 220px;border-radius:14px;padding:20px;display:flex;flex-direction:column;justify-content:center;gap:18px;transition:background .3s;}
 .hg-set-t{font-size:12.5px;letter-spacing:.12em;font-weight:700;opacity:.72;}
-.hg-set-m{font-size:38px;font-weight:800;letter-spacing:-.03em;line-height:1;margin:8px 0 3px;}
-.hg-set-y{font-size:14px;opacity:.82;font-weight:600;}
-.hg-ystep{display:flex;align-items:center;gap:10px;margin-top:18px;background:rgba(255,255,255,.13);border-radius:12px;padding:8px;}
-.hg-ystep button{width:34px;height:34px;border-radius:9px;border:none;background:rgba(255,255,255,.18);color:#fff;cursor:pointer;display:grid;place-items:center;transition:.18s;}
-.hg-ystep button:hover{background:rgba(255,255,255,.32);}
-.hg-ystep button:disabled{opacity:.3;cursor:default;}
-.hg-ystep button:disabled:hover{background:rgba(255,255,255,.18);}
-.hg-ystep .v{flex:1;text-align:center;font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;}
+.hg-set-mrow{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.hg-set-m{font-size:42px;font-weight:800;letter-spacing:-.03em;line-height:1;flex:1;text-align:center;}
+.hg-set-arw{width:38px;height:38px;border-radius:11px;border:none;background:rgba(255,255,255,.15);color:#fff;cursor:pointer;display:grid;place-items:center;transition:background .16s;flex-shrink:0;}
+.hg-set-arw:hover:not(:disabled){background:rgba(255,255,255,.3);}
+.hg-set-arw:disabled{opacity:.32;cursor:default;}
 
-.hg-statcol{flex:0 0 264px;min-width:240px;}
+.hg-statcol{flex:0 0 300px;min-width:260px;}
 .hg-tiles{display:flex;gap:9px;padding:15px 15px 0;}
 .hg-tile{flex:1;border:1px solid var(--line);border-radius:12px;padding:11px 8px;text-align:center;}
 .hg-tile .l{font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);font-weight:700;}
@@ -254,7 +251,7 @@ const CSS = `
 .hg-ana-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);}
 .hg-ana-row:last-child{border-bottom:none;}
 .hg-ana-dot{width:9px;height:9px;border-radius:99px;flex-shrink:0;}
-.hg-ana-em{font-size:16px;width:20px;text-align:center;flex-shrink:0;}
+.hg-ana-em{font-size:16px;width:22px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
 .hg-ana-nm{font-size:14px;font-weight:600;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .hg-ana-bar{width:80px;height:9px;border-radius:99px;background:var(--line);overflow:hidden;flex-shrink:0;}
 .hg-ana-fill{height:100%;border-radius:99px;transition:width .7s cubic-bezier(.3,.7,.3,1);}
@@ -878,15 +875,11 @@ export default function HabitGameDashboard() {
 
         <div className="hg-row">
           <div className="hg-set" style={{ background: th.primary }}>
-            <div>
-              <div className="hg-set-t">{active === 'all' ? 'ALL PLANS' : getProject(active)?.horizon + ' 계획'}</div>
+            <div className="hg-set-t">{active === 'all' ? 'ALL PLANS' : getProject(active)?.horizon + ' 계획'}</div>
+            <div className="hg-set-mrow">
+              <button className="hg-set-arw" onClick={() => setMonth((m) => Math.max(0, m - 1))} disabled={month === 0} aria-label="이전 달"><ChevronLeft size={22} /></button>
               <div className="hg-set-m">{MONTHS[month]}</div>
-              <div className="hg-set-y">{year}년 · {active === 'all' ? '전체' : getProject(active)?.name} · {visibleHabits.length}개</div>
-            </div>
-            <div className="hg-ystep">
-              <button onClick={() => setMonth((m) => Math.max(0, m - 1))} disabled={month === 0} aria-label="이전 달"><ChevronLeft size={18} /></button>
-              <span className="v">{MONTHS[month]}</span>
-              <button onClick={() => setMonth((m) => Math.min(11, m + 1))} disabled={month === 11} aria-label="다음 달"><ChevronRight size={18} /></button>
+              <button className="hg-set-arw" onClick={() => setMonth((m) => Math.min(11, m + 1))} disabled={month === 11} aria-label="다음 달"><ChevronRight size={22} /></button>
             </div>
           </div>
 
@@ -995,7 +988,7 @@ export default function HabitGameDashboard() {
                 analysis.map((a) => (
                   <div key={a.id} className="hg-ana-row">
                     <span className="hg-ana-dot" style={{ background: a.color }} />
-                    <span className="hg-ana-em">{a.emoji}</span>
+                    <span className="hg-ana-em">{renderIcon(a.emoji)}</span>
                     <span className="hg-ana-nm">{a.name}</span>
                     {a.streak >= 2 && <span className="hg-ana-streak" title={`${a.streak}일 연속 달성 중`}>🔥{a.streak}</span>}
                     <span className="hg-ana-bar"><span className="hg-ana-fill" style={{ width: `${a.pct}%`, background: a.color }} /></span>
