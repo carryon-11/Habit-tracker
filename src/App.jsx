@@ -28,8 +28,9 @@ const renderIcon = (icon, size = '1em') => {
     const st = { display: 'inline-block', verticalAlign: '-0.15em', flexShrink: 0 };
     // 카카오톡: 흰 배경에서 노란 말풍선이 안 보여서 진짜 앱 아이콘처럼(갈색 사각 배경 + 노란 말풍선/TALK).
     if (key === 'kakaotalk') return (
+      // 갈색 배경은 중앙(말풍선 영역)만 덮어 모퉁이로 삐져나오지 않게(주황점 방지). 말풍선은 x 2.25~21.75에 있음.
       <svg viewBox="0 0 24 24" width={size} height={size} role="img" aria-label="KakaoTalk" style={st}>
-        <rect width="24" height="24" rx="1.875" fill="#3C1E1E" /><path d={b.path} fill="#FFE812" />
+        <rect x="2" y="2" width="20" height="20" rx="4" fill="#3C1E1E" /><path d={b.path} fill="#FFE812" />
       </svg>
     );
     return (
