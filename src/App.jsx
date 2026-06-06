@@ -22,10 +22,18 @@ const SNS_ICONS = {
 // 아이콘 렌더: 'sns:*'면 브랜드색 SVG, 아니면 이모지 글자 그대로(기존 데이터 호환).
 const renderIcon = (icon, size = '1em') => {
   if (typeof icon === 'string' && icon.startsWith('sns:')) {
-    const b = SNS_ICONS[icon.slice(4)];
-    if (b) return (
-      <svg viewBox="0 0 24 24" width={size} height={size} fill={'#' + b.hex} role="img" aria-label={b.title}
-        style={{ display: 'inline-block', verticalAlign: '-0.15em', flexShrink: 0 }}><path d={b.path} /></svg>
+    const key = icon.slice(4);
+    const b = SNS_ICONS[key];
+    if (!b) return icon;
+    const st = { display: 'inline-block', verticalAlign: '-0.15em', flexShrink: 0 };
+    // 카카오톡: 흰 배경에서 노란 말풍선이 안 보여서 진짜 앱 아이콘처럼(갈색 사각 배경 + 노란 말풍선/TALK).
+    if (key === 'kakaotalk') return (
+      <svg viewBox="0 0 24 24" width={size} height={size} role="img" aria-label="KakaoTalk" style={st}>
+        <rect width="24" height="24" rx="1.875" fill="#3C1E1E" /><path d={b.path} fill="#FFE812" />
+      </svg>
+    );
+    return (
+      <svg viewBox="0 0 24 24" width={size} height={size} fill={'#' + b.hex} role="img" aria-label={b.title} style={st}><path d={b.path} /></svg>
     );
   }
   return icon;
@@ -132,7 +140,7 @@ const CSS = `
 .hg-navcard{flex:0 0 206px;min-width:206px;border-radius:14px;padding:13px 14px;cursor:pointer;transition:.16s;position:relative;text-align:left;font-family:var(--ui);}
 .hg-navcard:hover{box-shadow:0 8px 20px -12px rgba(0,0,0,.3);}
 .hg-nc-top{display:flex;align-items:center;gap:9px;margin-bottom:10px;}
-.hg-nc-em{font-size:19px;}
+.hg-nc-em{font-size:19px;width:1.4em;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
 .hg-nc-nm{font-size:15.5px;font-weight:800;letter-spacing:-.02em;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .hg-nc-meta{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
 .hg-nc-badge{font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:99px;}
@@ -202,7 +210,7 @@ const CSS = `
 .hg-gh-day.today .hg-gh-dn{background:var(--lime);color:var(--green);border-radius:7px;padding:1px 3px;min-width:21px;text-align:center;}
 .hg-grp-head{border-bottom:1px solid var(--line);}
 .hg-grp-name{position:sticky;left:0;z-index:2;background:#fff;height:36px;display:flex;align-items:center;gap:9px;padding:0 13px;border-right:1px solid var(--line);}
-.hg-grp-em{font-size:16px;}
+.hg-grp-em{font-size:16px;width:1.4em;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
 .hg-grp-nm{font-size:14px;font-weight:800;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .hg-grp-badge{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:99px;white-space:nowrap;position:relative;z-index:1;}
 .hg-grp-pct{font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;position:relative;z-index:1;}
@@ -220,7 +228,7 @@ const CSS = `
 .hg-gr-name.drop-before{box-shadow:inset 0 3px 0 0 var(--green);}
 .hg-gr-name.drop-after{box-shadow:inset 0 -3px 0 0 var(--green);}
 .hg-grid-row:hover .hg-gr-name{background:#f7f9f2;}
-.hg-gr-em{font-size:17px;flex-shrink:0;}
+.hg-gr-em{font-size:17px;flex-shrink:0;width:1.4em;display:inline-flex;align-items:center;justify-content:center;}
 .hg-gr-nm{font-size:14.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1;}
 .hg-gr-nm.hg-clickable{cursor:pointer;}
 .hg-grid-row:hover .hg-gr-nm.hg-clickable{color:var(--green);}
