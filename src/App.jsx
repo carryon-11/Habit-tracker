@@ -291,6 +291,10 @@ const CSS = `
 /* modal */
 .hg-ov{position:fixed;inset:0;z-index:60;background:rgba(20,30,25,.42);backdrop-filter:blur(5px);display:grid;place-items:center;padding:20px;animation:hgFade .2s ease;overflow-y:auto;}
 .hg-modal{width:100%;max-width:470px;background:#fff;border-radius:22px;padding:26px;animation:hgPop .3s cubic-bezier(.2,.8,.2,1);box-shadow:0 30px 70px -20px rgba(0,0,0,.4);margin:auto;}
+/* 긴 모달(습관/계획): 헤더 고정 + 본문만 스크롤(스크롤바 1개로 통일) */
+.hg-modal-tall{display:flex;flex-direction:column;padding:0;max-height:calc(100vh - 40px);}
+.hg-modal-tall .hg-mh{padding:24px 26px 14px;margin-bottom:0;flex-shrink:0;}
+.hg-modal-tall .hg-mbody{overflow-y:auto;padding:2px 26px 24px;}
 .hg-mh{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;}
 .hg-mt{font-size:20px;font-weight:800;letter-spacing:-.02em;}
 .hg-mx{width:36px;height:36px;border-radius:11px;border:1px solid var(--line);background:#f4f6ef;color:var(--muted);cursor:pointer;display:grid;place-items:center;transition:.18s;}
@@ -298,7 +302,7 @@ const CSS = `
 .hg-ml{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;}
 .hg-mi{width:100%;padding:14px 16px;border-radius:13px;border:1px solid var(--line2);background:#fafbf7;color:var(--ink);font-size:16px;font-family:var(--ui);font-weight:600;outline:none;transition:.18s;margin-bottom:20px;}
 .hg-mi:focus{border-color:var(--green);background:#fff;}
-.hg-empick{max-height:320px;overflow-y:auto;scrollbar-gutter:stable;margin-bottom:20px;}
+.hg-empick{margin-bottom:20px;}
 .hg-emcat{border:1px solid var(--line);border-radius:12px;margin-bottom:8px;overflow:hidden;}
 .hg-emcat:last-child{margin-bottom:0;}
 .hg-emcat-head{width:100%;display:flex;align-items:center;gap:9px;padding:11px 13px;background:#fafbf7;border:none;cursor:pointer;font-family:var(--ui);font-size:13px;font-weight:700;color:var(--ink);transition:background .15s;}
@@ -419,6 +423,15 @@ export default function HabitGameDashboard() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+
+  // 모달이 열리면 뒤 배경(앱 전체) 스크롤 잠금 → 스크롤바 중복 방지
+  useEffect(() => {
+    if (!(addingHabit || projModal || themeModal || dialog)) return;
+    const html = document.documentElement;
+    const prev = html.style.overflow;
+    html.style.overflow = 'hidden';
+    return () => { html.style.overflow = prev; };
+  }, [addingHabit, projModal, themeModal, dialog]);
 
   // 업데이트 상태를 메인 프로세스에서 받아 헤더 버튼에 표시.
   // checking/latest/error 는 사용자가 직접 누른 경우에만 표시(자동 백그라운드 확인은 조용히),
@@ -1040,8 +1053,9 @@ export default function HabitGameDashboard() {
 
       {addingHabit && (
         <div className="hg-ov" onMouseDown={(e) => { if (e.target === e.currentTarget) { setAddingHabit(false); setEditingHabitId(null); } }}>
-          <div className="hg-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="hg-modal hg-modal-tall" onClick={(e) => e.stopPropagation()}>
             <div className="hg-mh"><div className="hg-mt">{editingHabitId ? '습관 편집' : '새 습관 추가'}</div><button className="hg-mx" onClick={() => { setAddingHabit(false); setEditingHabitId(null); }}><X size={19} /></button></div>
+            <div className="hg-mbody">
             {!editingHabitId && sortedProjects.length === 0 ? (
               <div>
                 <div style={{ fontSize: 15, color: 'var(--muted)', fontWeight: 600, marginBottom: 18, lineHeight: 1.55 }}>먼저 계획(프로젝트)을 하나 추가해야 해요. 습관은 계획 안에 들어갑니다.</div>
@@ -1068,14 +1082,16 @@ export default function HabitGameDashboard() {
                 <button className="hg-btn primary" style={{ width: '100%', justifyContent: 'center', padding: 15, fontSize: 16 }} onClick={saveHabit} disabled={!hName.trim() || (!editingHabitId && !hProject)}>{editingHabitId ? '저장하기' : <><Plus size={19} />추가하기</>}</button>
               </>
             )}
+            </div>
           </div>
         </div>
       )}
 
       {projModal && (
         <div className="hg-ov" onMouseDown={(e) => { if (e.target === e.currentTarget) setProjModal(false); }}>
-          <div className="hg-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="hg-modal hg-modal-tall" onClick={(e) => e.stopPropagation()}>
             <div className="hg-mh"><div className="hg-mt">{editId ? '계획 편집' : '새 계획 추가'}</div><button className="hg-mx" onClick={() => setProjModal(false)}><X size={19} /></button></div>
+            <div className="hg-mbody">
             <div className="hg-ml">계획 이름</div>
             <input className="hg-mi" value={pName} onChange={(e) => setPName(e.target.value)} placeholder="예: 올해 건강 만들기" onKeyDown={(e) => e.key === 'Enter' && saveProject()} maxLength={24} autoFocus />
             <div className="hg-ml">기간 · 규모</div>
@@ -1085,6 +1101,7 @@ export default function HabitGameDashboard() {
             <div className="hg-ml">색상</div>
             <div className="hg-colrow">{PROJECT_COLORS.map((c) => <button key={c} className={`hg-col ${pColor === c ? 'on' : ''}`} style={{ background: c, color: c }} onClick={() => setPColor(c)} />)}</div>
             <button className="hg-btn primary" style={{ width: '100%', justifyContent: 'center', padding: 15, fontSize: 16 }} onClick={saveProject} disabled={!pName.trim()}>{editId ? '저장하기' : <><Plus size={19} />계획 추가</>}</button>
+            </div>
           </div>
         </div>
       )}
