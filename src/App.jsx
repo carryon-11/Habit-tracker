@@ -24,6 +24,7 @@ const EMOJI_CATS = [
   { name: '자연·기타', emojis: ['🌳', '🌲', '🌻', '⭐', '🔥', '💎', '🏆', '🥇', '🎖️', '✅', '🚀', '🌍', '💯', '📍', '🎁', '🔔'] },
 ];
 const EMOJIS = EMOJI_CATS.flatMap((c) => c.emojis); // 평면 목록(기본값 등 호환용)
+const catOf = (e) => (EMOJI_CATS.find((c) => c.emojis.includes(e)) || EMOJI_CATS[0]).name; // 이모지가 속한 분류명
 const PROJECT_COLORS = ['#2f9e6f', '#5b7fb9', '#c98b2e', '#b5566a', '#7d6bc9', '#3aa6a0', '#d97757', '#558b2f'];
 const HORIZONS = ['장기', '중기', '단기'];
 const HORIZON_ORDER = { '장기': 0, '중기': 1, '단기': 2 };
@@ -165,9 +166,15 @@ const CSS = `
 .hg-grid-head,.hg-grid-row,.hg-grp-head{display:grid;align-items:center;}
 .hg-grid-head{background:var(--green);position:sticky;top:0;z-index:3;}
 .hg-gh-corner{position:sticky;left:0;z-index:4;background:var(--green);color:#fff;font-size:12.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:11px 13px;display:flex;align-items:center;height:100%;}
-.hg-colresize{position:absolute;top:0;right:0;width:9px;height:100%;cursor:col-resize;z-index:6;display:flex;align-items:center;justify-content:center;touch-action:none;}
-.hg-colresize::after{content:'';width:2px;height:54%;border-radius:2px;background:rgba(255,255,255,.4);transition:.15s;}
-.hg-colresize:hover::after,.hg-colresize:active::after{background:#fff;height:74%;width:3px;}
+.hg-colresize{position:absolute;top:0;right:-3px;width:9px;height:100%;cursor:col-resize;z-index:6;touch-action:none;}
+.hg-colresize::after{content:'';position:absolute;top:14%;bottom:14%;right:3px;width:2px;border-radius:2px;background:transparent;transition:background .15s;}
+.hg-colresize:hover::after{background:var(--green);}
+.hg-gh-corner .hg-colresize::after{top:0;bottom:0;}
+.hg-gh-corner .hg-colresize:hover::after{background:#fff;}
+/* 경계 핸들에 마우스 올리거나 드래그 중이면 이름/날짜 경계선 전체를 강조(세로로 이어진 조절선임을 한눈에) */
+.col-hint{cursor:col-resize;}
+.col-hint .hg-gr-name,.col-hint .hg-grp-name{box-shadow:inset -2px 0 0 0 var(--green);}
+.col-hint .hg-gh-corner{box-shadow:inset -2px 0 0 0 rgba(255,255,255,.85);}
 .hg-gh-day{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:7px 0;color:#fff;}
 .hg-gh-day.wknd{color:var(--lime2);}
 .hg-gh-wd{font-size:10.5px;font-weight:600;opacity:.8;}
@@ -184,9 +191,10 @@ const CSS = `
 .hg-grp-label{position:absolute;top:0;bottom:0;display:flex;align-items:center;gap:8px;padding-left:8px;white-space:nowrap;transition:left .6s cubic-bezier(.3,.7,.3,1);}
 .hg-grid-row{border-bottom:1px solid var(--line);}
 .hg-grid-row:last-child{border-bottom:none;}
-.hg-gr-name{position:sticky;left:0;z-index:2;background:var(--card);padding:0 13px 0 17px;height:42px;display:flex;align-items:center;gap:9px;border-right:1px solid var(--line);cursor:grab;}
-.hg-gr-name:active{cursor:grabbing;}
-.hg-gr-grip{position:absolute;left:2px;top:0;height:100%;display:grid;place-items:center;color:var(--line2);opacity:0;transition:opacity .15s;pointer-events:none;}
+.hg-gr-name{position:sticky;left:0;z-index:2;background:var(--card);padding:0 13px 0 17px;height:42px;display:flex;align-items:center;gap:9px;border-right:1px solid var(--line);}
+.hg-gr-grip{position:absolute;left:1px;top:0;height:100%;display:grid;place-items:center;color:var(--line2);opacity:0;transition:opacity .15s,color .15s;cursor:grab;}
+.hg-gr-grip:hover{color:var(--muted);}
+.hg-gr-grip:active{cursor:grabbing;}
 .hg-grid-row:hover .hg-gr-grip{opacity:1;}
 .hg-grid-row.hg-dragging{opacity:.4;}
 .hg-gr-name.drop-before{box-shadow:inset 0 3px 0 0 var(--green);}
@@ -270,11 +278,17 @@ const CSS = `
 .hg-ml{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px;}
 .hg-mi{width:100%;padding:14px 16px;border-radius:13px;border:1px solid var(--line2);background:#fafbf7;color:var(--ink);font-size:16px;font-family:var(--ui);font-weight:600;outline:none;transition:.18s;margin-bottom:20px;}
 .hg-mi:focus{border-color:var(--green);background:#fff;}
-.hg-empick{max-height:248px;overflow-y:auto;margin-bottom:20px;padding-right:6px;}
-.hg-emcat{margin-bottom:12px;}
+.hg-empick{max-height:320px;overflow-y:auto;scrollbar-gutter:stable;margin-bottom:20px;}
+.hg-emcat{border:1px solid var(--line);border-radius:12px;margin-bottom:8px;overflow:hidden;}
 .hg-emcat:last-child{margin-bottom:0;}
-.hg-emcat-lab{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.04em;margin-bottom:7px;position:sticky;top:0;background:#fff;padding:3px 0;z-index:1;}
-.hg-emg{display:grid;grid-template-columns:repeat(8,1fr);gap:7px;}
+.hg-emcat-head{width:100%;display:flex;align-items:center;gap:9px;padding:11px 13px;background:#fafbf7;border:none;cursor:pointer;font-family:var(--ui);font-size:13px;font-weight:700;color:var(--ink);transition:background .15s;}
+.hg-emcat-head:hover{background:#f0f3ea;}
+.hg-emcat.open .hg-emcat-head{background:#eef3e7;}
+.hg-emcat-nm{flex:1;text-align:left;letter-spacing:.02em;}
+.hg-emcat-sel{font-size:18px;line-height:1;}
+.hg-emcat-chev{color:var(--muted);transition:transform .2s;flex-shrink:0;}
+.hg-emcat.open .hg-emcat-chev{transform:rotate(180deg);}
+.hg-emg{display:grid;grid-template-columns:repeat(8,1fr);gap:7px;padding:12px 13px 14px;}
 .hg-emc{aspect-ratio:1;border-radius:11px;border:1px solid var(--line);background:#fafbf7;font-size:19px;cursor:pointer;display:grid;place-items:center;transition:.14s;}
 .hg-emc:hover{background:#f0f3ea;}
 .hg-emc.on{border-color:var(--green);background:#eaf2e0;transform:scale(1.06);}
@@ -345,6 +359,7 @@ export default function HabitGameDashboard() {
   const updUserRef = useRef(false);              // 사용자가 직접 '확인'을 눌렀는지(자동 백그라운드 체크는 조용히)
   const canUpdate = typeof window !== 'undefined' && !!window.habitUpdater; // 데스크탑(Electron)에서만 버튼 노출
   const [nameColW, setNameColW] = useState(198); // 습관 이름칸 너비(드래그로 조절, 저장됨)
+  const [openCat, setOpenCat] = useState(EMOJI_CATS[0].name); // 아이콘 선택기에서 펼쳐진 분류(아코디언)
   const th = THEMES[theme] || THEMES.green;
   const pageStyle = { '--green': th.primary, '--green2': th.primary2, '--lime': th.accent, '--lime2': th.accent2, '--page': th.page, '--wknd': th.wknd, '--todaycol': th.today };
 
@@ -492,8 +507,8 @@ export default function HabitGameDashboard() {
   }, [active, sortedProjects, habits, projects]);
 
   const toggle = (id, k, future) => { if (future) return; setCompletions((p) => { const h = { ...(p[id] || {}) }; if (h[k]) delete h[k]; else h[k] = true; return { ...p, [id]: h }; }); };
-  const openAddHabit = () => { setEditingHabitId(null); setHName(''); setHEmoji(EMOJIS[0]); setHProject(active !== 'all' ? active : (sortedProjects[0]?.id || null)); setAddingHabit(true); };
-  const openEditHabit = (h) => { setEditingHabitId(h.id); setHName(h.name); setHEmoji(h.emoji); setHProject(h.projectId || null); setAddingHabit(true); };
+  const openAddHabit = () => { setEditingHabitId(null); setHName(''); setHEmoji(EMOJIS[0]); setOpenCat(catOf(EMOJIS[0])); setHProject(active !== 'all' ? active : (sortedProjects[0]?.id || null)); setAddingHabit(true); };
+  const openEditHabit = (h) => { setEditingHabitId(h.id); setHName(h.name); setHEmoji(h.emoji); setOpenCat(catOf(h.emoji)); setHProject(h.projectId || null); setAddingHabit(true); };
   const saveHabit = () => {
     if (!hName.trim()) return;
     if (editingHabitId) setHabits((p) => p.map((h) => h.id === editingHabitId ? { ...h, name: hName.trim(), emoji: hEmoji, projectId: hProject } : h));
@@ -557,7 +572,11 @@ export default function HabitGameDashboard() {
     e.dataTransfer.effectAllowed = 'move';
     try { e.dataTransfer.setData('text/plain', h.id); } catch (err) {} // 일부 브라우저는 데이터 필요
     const row = e.currentTarget.closest('.hg-grid-row');
-    if (row) row.classList.add('hg-dragging');
+    if (row) {
+      row.classList.add('hg-dragging');
+      const nameEl = row.querySelector('.hg-gr-name'); // 작은 그립 대신 이름칸을 드래그 미리보기로
+      if (nameEl && e.dataTransfer.setDragImage) { try { e.dataTransfer.setDragImage(nameEl, 24, 18); } catch (err) {} }
+    }
   };
   const onHabitDragOver = (e, h) => {
     if (!dragIdRef.current || dragIdRef.current === h.id) return;
@@ -587,8 +606,8 @@ export default function HabitGameDashboard() {
     dragIdRef.current = null;
   };
 
-  const openAddProject = () => { setEditId(null); setPName(''); setPEmoji('🌱'); setPColor(PROJECT_COLORS[projects.length % PROJECT_COLORS.length]); setPHorizon('장기'); setProjModal(true); };
-  const openEditProject = (p) => { setEditId(p.id); setPName(p.name); setPEmoji(p.emoji); setPColor(p.color); setPHorizon(p.horizon); setProjModal(true); };
+  const openAddProject = () => { setEditId(null); setPName(''); setPEmoji('🌱'); setOpenCat(catOf('🌱')); setPColor(PROJECT_COLORS[projects.length % PROJECT_COLORS.length]); setPHorizon('장기'); setProjModal(true); };
+  const openEditProject = (p) => { setEditId(p.id); setPName(p.name); setPEmoji(p.emoji); setOpenCat(catOf(p.emoji)); setPColor(p.color); setPHorizon(p.horizon); setProjModal(true); };
   const saveProject = () => {
     if (!pName.trim()) return;
     if (editId) setProjects((ps) => ps.map((p) => p.id === editId ? { ...p, name: pName.trim(), emoji: pEmoji, color: pColor, horizon: pHorizon } : p));
@@ -657,9 +676,11 @@ export default function HabitGameDashboard() {
   const scrollRef = useRef(null);
   const resizeRef = useRef(null);
   const clampW = (v) => Math.max(150, Math.min(400, v));
+  const colHint = (on) => { if (scrollRef.current) scrollRef.current.classList.toggle('col-hint', on); }; // 경계선 전체 강조
   const onColResizeDown = (e) => {
-    e.preventDefault();
+    e.preventDefault(); e.stopPropagation();
     resizeRef.current = { startX: e.clientX, startW: nameColW, w: nameColW };
+    colHint(true);
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
   };
   const onColResizeMove = (e) => {
@@ -670,26 +691,45 @@ export default function HabitGameDashboard() {
     if (scrollRef.current) { scrollRef.current.style.setProperty('--namecol', w + 'px'); scrollRef.current.style.setProperty('--cellw', cw + 'px'); }
   };
   const onColResizeUp = (e) => {
-    if (!resizeRef.current) return;
-    const w = resizeRef.current.w;
+    const st = resizeRef.current;
     resizeRef.current = null;
+    colHint(false);
     try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) {}
-    setNameColW(w); // 상태에 반영 → 저장
+    if (st) setNameColW(st.w); // 상태에 반영 → 저장
   };
+  // 이름/날짜 경계 너비조절 핸들 — 헤더·그룹·습관 모든 행에 깔아 세로로 이어지게(어디서든 드래그 가능).
+  const colHandle = () => (
+    <span className="hg-colresize"
+      onPointerDown={onColResizeDown} onPointerMove={onColResizeMove} onPointerUp={onColResizeUp}
+      onPointerEnter={() => { if (!resizeRef.current) colHint(true); }}
+      onPointerLeave={() => { if (!resizeRef.current) colHint(false); }}
+      onDragStart={(e) => { e.preventDefault(); e.stopPropagation(); }}
+      title="드래그해서 이름칸 너비 조절" />
+  );
 
-  // 분류별 아이콘 선택기 (습관/계획 모달 공용)
+  // 분류별 아이콘 선택기 (습관/계획 모달 공용) — ▼ 눌러 펼치는 아코디언
   const emojiPicker = (selected, onPick) => (
     <div className="hg-empick">
-      {EMOJI_CATS.map((cat) => (
-        <div key={cat.name} className="hg-emcat">
-          <div className="hg-emcat-lab">{cat.name}</div>
-          <div className="hg-emg">
-            {cat.emojis.map((e) => (
-              <button key={e} type="button" className={`hg-emc ${selected === e ? 'on' : ''}`} onClick={() => onPick(e)}>{e}</button>
-            ))}
+      {EMOJI_CATS.map((cat) => {
+        const open = openCat === cat.name;
+        const here = cat.emojis.includes(selected);
+        return (
+          <div key={cat.name} className={`hg-emcat ${open ? 'open' : ''}`}>
+            <button type="button" className="hg-emcat-head" onClick={() => setOpenCat(open ? null : cat.name)}>
+              <span className="hg-emcat-nm">{cat.name}</span>
+              {here && <span className="hg-emcat-sel">{selected}</span>}
+              <ChevronDown size={16} className="hg-emcat-chev" />
+            </button>
+            {open && (
+              <div className="hg-emg">
+                {cat.emojis.map((e) => (
+                  <button key={e} type="button" className={`hg-emc ${selected === e ? 'on' : ''}`} onClick={() => onPick(e)}>{e}</button>
+                ))}
+              </div>
+            )}
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
   // B(하단 탭) = 연도 선택. 올해 기준 범위에 현재 선택 연도를 항상 포함.
@@ -714,8 +754,8 @@ export default function HabitGameDashboard() {
     const si = siblings.findIndex((x) => x.id === h.id);
     return (
       <div key={h.id} className="hg-grid-row" style={{ gridTemplateColumns: dayCol }} onDragOver={(e) => onHabitDragOver(e, h)} onDrop={(e) => onHabitDrop(e, h)}>
-        <div className="hg-gr-name" style={{ borderLeft: `4px solid ${c}` }} draggable onDragStart={(e) => onHabitDragStart(e, h)} onDragEnd={onHabitDragEnd} title="드래그해서 순서 변경">
-          <span className="hg-gr-grip" aria-hidden="true"><GripVertical size={14} /></span>
+        <div className="hg-gr-name" style={{ borderLeft: `4px solid ${c}` }}>
+          <span className="hg-gr-grip" draggable onDragStart={(e) => onHabitDragStart(e, h)} onDragEnd={onHabitDragEnd} title="드래그해서 순서 변경"><GripVertical size={14} /></span>
           <span className="hg-gr-em">{h.emoji}</span>
           <span className="hg-gr-nm hg-clickable" onClick={() => openEditHabit(h)} title="이름·아이콘·계획 편집">{h.name}</span>
           <span className="hg-gr-acts">
@@ -724,6 +764,7 @@ export default function HabitGameDashboard() {
             <button className="hg-gr-actbtn edit" onClick={() => openEditHabit(h)} aria-label="편집"><Pencil size={14} /></button>
             <button className="hg-gr-actbtn del" onClick={() => delHabit(h.id)} aria-label="삭제"><Trash2 size={14} /></button>
           </span>
+          {colHandle()}
         </div>
         {days.map((d) => {
           const on = isDone(completions, h.id, d.key);
@@ -868,9 +909,7 @@ export default function HabitGameDashboard() {
               ) : (
                 <div style={{ minWidth: `calc(var(--namecol) + ${daysInMonth} * var(--cellw))` }}>
                   <div className="hg-grid-head" style={{ gridTemplateColumns: dayCol }}>
-                    <div className="hg-gh-corner">습관
-                      <span className="hg-colresize" onPointerDown={onColResizeDown} onPointerMove={onColResizeMove} onPointerUp={onColResizeUp} title="드래그해서 이름칸 너비 조절" />
-                    </div>
+                    <div className="hg-gh-corner">습관{colHandle()}</div>
                     {days.map((d) => (
                       <div key={d.d} className={`hg-gh-day ${d.weekend ? 'wknd' : ''} ${d.isToday ? 'today' : ''}`}>
                         <span className="hg-gh-wd">{KWD[d.wd]}</span><span className="hg-gh-dn">{d.d}</span>
@@ -887,6 +926,7 @@ export default function HabitGameDashboard() {
                             <div className="hg-grp-name" style={{ borderLeft: `5px solid ${col}` }}>
                               <span className="hg-grp-em">{g.project ? g.project.emoji : '📁'}</span>
                               <span className="hg-grp-nm">{g.project ? g.project.name : '미분류'}</span>
+                              {colHandle()}
                             </div>
                             <div className="hg-grp-meta">
                               <div className="hg-grp-fill" style={{ width: `${gs.pct}%`, background: col }} />
