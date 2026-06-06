@@ -4,6 +4,7 @@ import {
   XAxis, YAxis, ResponsiveContainer, Tooltip, LabelList
 } from 'recharts';
 import { Crown, Check, Plus, Trash2, X, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Moon, Smile, RotateCcw, Pencil, Download, Upload, Palette, RefreshCw, GripVertical } from 'lucide-react';
+import { siYoutube, siInstagram, siThreads, siFacebook, siTiktok, siX, siSnapchat, siPinterest, siReddit, siDiscord, siTwitch, siKakaotalk, siNaver, siTelegram, siWhatsapp, siSpotify, siGithub } from 'simple-icons';
 import pkg from '../package.json';
 
 /* ---------------- helpers ---------------- */
@@ -12,6 +13,24 @@ const keyOf = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`;
 const today0 = () => { const x = new Date(); x.setHours(0, 0, 0, 0); return x; };
 const KWD = ['일', '월', '화', '수', '목', '금', '토'];
 const MONTHS = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
+// SNS·서비스 브랜드 로고(이모지에 없어 simple-icons의 SVG 사용). 'sns:키'로 저장하고 renderIcon이 SVG로 그림.
+const SNS_ICONS = {
+  youtube: siYoutube, instagram: siInstagram, threads: siThreads, facebook: siFacebook, tiktok: siTiktok,
+  x: siX, snapchat: siSnapchat, pinterest: siPinterest, reddit: siReddit, discord: siDiscord, twitch: siTwitch,
+  kakaotalk: siKakaotalk, naver: siNaver, telegram: siTelegram, whatsapp: siWhatsapp, spotify: siSpotify, github: siGithub,
+};
+// 아이콘 렌더: 'sns:*'면 브랜드색 SVG, 아니면 이모지 글자 그대로(기존 데이터 호환).
+const renderIcon = (icon, size = '1em') => {
+  if (typeof icon === 'string' && icon.startsWith('sns:')) {
+    const b = SNS_ICONS[icon.slice(4)];
+    if (b) return (
+      <svg viewBox="0 0 24 24" width={size} height={size} fill={'#' + b.hex} role="img" aria-label={b.title}
+        style={{ display: 'inline-block', verticalAlign: '-0.15em', flexShrink: 0 }}><path d={b.path} /></svg>
+    );
+  }
+  return icon;
+};
+
 // 분류별 아이콘 (분류 안에서도 비슷한 것끼리 가깝게 배치)
 const EMOJI_CATS = [
   { name: '운동·신체', emojis: ['🏃', '🚶', '🚴', '🚵', '🧗', '🏊', '🏄', '⛸️', '🤸', '🤾', '🏋️', '💪', '⚽', '🏀', '🏐', '🏈', '⚾', '🎾', '🏸', '🏓', '🥊', '🧘'] },
@@ -22,6 +41,7 @@ const EMOJI_CATS = [
   { name: '생활·집안', emojis: ['🧹', '🧺', '🧽', '🛒', '💰', '🪙', '💳', '🪴', '🌱', '🐶', '🐱', '🔧', '🧻', '🏠', '📦', '🗑️', '🔑', '📵', '⏰', '☀️'] },
   { name: '취미·예술', emojis: ['🎨', '🖌️', '🎵', '🎸', '🎹', '🥁', '🎤', '📷', '🎬', '🎮', '🕹️', '🧩', '♟️', '🎯', '🎲', '✏️', '🧶', '🎭'] },
   { name: '자연·기타', emojis: ['🌳', '🌲', '🌻', '⭐', '🔥', '💎', '🏆', '🥇', '🎖️', '✅', '🚀', '🌍', '💯', '📍', '🎁', '🔔'] },
+  { name: 'SNS·서비스', emojis: Object.keys(SNS_ICONS).map((k) => 'sns:' + k) },
 ];
 const EMOJIS = EMOJI_CATS.flatMap((c) => c.emojis); // 평면 목록(기본값 등 호환용)
 const catOf = (e) => (EMOJI_CATS.find((c) => c.emojis.includes(e)) || EMOJI_CATS[0]).name; // 이모지가 속한 분류명
@@ -717,13 +737,13 @@ export default function HabitGameDashboard() {
           <div key={cat.name} className={`hg-emcat ${open ? 'open' : ''}`}>
             <button type="button" className="hg-emcat-head" onClick={() => setOpenCat(open ? null : cat.name)}>
               <span className="hg-emcat-nm">{cat.name}</span>
-              {here && <span className="hg-emcat-sel">{selected}</span>}
+              {here && <span className="hg-emcat-sel">{renderIcon(selected)}</span>}
               <ChevronDown size={16} className="hg-emcat-chev" />
             </button>
             {open && (
               <div className="hg-emg">
                 {cat.emojis.map((e) => (
-                  <button key={e} type="button" className={`hg-emc ${selected === e ? 'on' : ''}`} onClick={() => onPick(e)}>{e}</button>
+                  <button key={e} type="button" className={`hg-emc ${selected === e ? 'on' : ''}`} onClick={() => onPick(e)}>{renderIcon(e)}</button>
                 ))}
               </div>
             )}
@@ -756,7 +776,7 @@ export default function HabitGameDashboard() {
       <div key={h.id} className="hg-grid-row" style={{ gridTemplateColumns: dayCol }} onDragOver={(e) => onHabitDragOver(e, h)} onDrop={(e) => onHabitDrop(e, h)}>
         <div className="hg-gr-name" style={{ borderLeft: `4px solid ${c}` }}>
           <span className="hg-gr-grip" draggable onDragStart={(e) => onHabitDragStart(e, h)} onDragEnd={onHabitDragEnd} title="드래그해서 순서 변경"><GripVertical size={14} /></span>
-          <span className="hg-gr-em">{h.emoji}</span>
+          <span className="hg-gr-em">{renderIcon(h.emoji)}</span>
           <span className="hg-gr-nm hg-clickable" onClick={() => openEditHabit(h)} title="이름·아이콘·계획 편집">{h.name}</span>
           <span className="hg-gr-acts">
             <button className="hg-gr-actbtn" onClick={() => moveHabit(h.id, -1)} disabled={si <= 0} aria-label="위로 이동"><ChevronUp size={14} /></button>
@@ -824,7 +844,7 @@ export default function HabitGameDashboard() {
                   <span className="hg-nc-act edit" onClick={(e) => { e.stopPropagation(); openEditProject(p); }} title="편집"><Pencil size={13} /></span>
                   <span className="hg-nc-act del" onClick={(e) => { e.stopPropagation(); delProject(p.id); }} title="삭제"><Trash2 size={13} /></span>
                 </div>
-                <div className="hg-nc-top"><span className="hg-nc-em">{p.emoji}</span><span className="hg-nc-nm">{p.name}</span></div>
+                <div className="hg-nc-top"><span className="hg-nc-em">{renderIcon(p.emoji)}</span><span className="hg-nc-nm">{p.name}</span></div>
                 <div className="hg-nc-meta"><span className="hg-nc-badge" style={{ background: p.color + '1e', color: p.color }}>{p.horizon}</span><span className="hg-nc-pct" style={{ color: p.color }}>{ps.pct}%</span></div>
                 <div className="hg-nc-bar"><div className="hg-nc-fill" style={{ width: `${ps.pct}%`, background: p.color }} /></div>
                 <div className="hg-nc-cnt">{cnt}개 습관</div>
@@ -924,7 +944,7 @@ export default function HabitGameDashboard() {
                         {active === 'all' && (
                           <div className="hg-grp-head" style={{ gridTemplateColumns: dayCol, background: col + '0c' }}>
                             <div className="hg-grp-name" style={{ borderLeft: `5px solid ${col}` }}>
-                              <span className="hg-grp-em">{g.project ? g.project.emoji : '📁'}</span>
+                              <span className="hg-grp-em">{renderIcon(g.project ? g.project.emoji : '📁')}</span>
                               <span className="hg-grp-nm">{g.project ? g.project.name : '미분류'}</span>
                               {colHandle()}
                             </div>
@@ -1004,7 +1024,7 @@ export default function HabitGameDashboard() {
                   <div key={a.id} data-id={a.id} className="hg-toprow">
                     <span className="hg-rank">{i + 1}</span>
                     <span className="hg-top-dot" style={{ background: a.color }} />
-                    <span className="hg-gr-em" style={{ fontSize: 16 }}>{a.emoji}</span>
+                    <span className="hg-gr-em" style={{ fontSize: 16 }}>{renderIcon(a.emoji)}</span>
                     <span className="hg-top-nm">{a.name}</span>
                     <span className="hg-top-v" style={{ color: a.color }}>{a.pct}%</span>
                   </div>

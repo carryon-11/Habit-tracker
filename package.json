@@ -1,7 +1,7 @@
 {
   "name": "habit-game-desktop",
   "private": true,
-  "version": "1.0.23",
+  "version": "1.0.24",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
@@ -15,7 +15,8 @@
     "lucide-react": "^0.383.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "recharts": "^2.12.7"
+    "recharts": "^2.12.7",
+    "simple-icons": "^16.22.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",
@@ -27,11 +28,39 @@
   "build": {
     "appId": "com.habitgame.tracker",
     "productName": "Habit Game",
-    "files": ["dist/**/*", "electron/**/*"],
-    "directories": { "output": "release", "buildResources": "build" },
-    "mac": { "target": [{ "target": "dmg", "arch": ["universal"] }], "category": "public.app-category.productivity" },
-    "win": { "target": "nsis" },
-    "linux": { "target": "AppImage", "category": "Utility" },
-    "publish": [{ "provider": "github", "owner": "carryon-11", "repo": "Habit-tracker", "releaseType": "release" }]
+    "files": [
+      "dist/**/*",
+      "electron/**/*"
+    ],
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
+      "category": "public.app-category.productivity"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage",
+      "category": "Utility"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "carryon-11",
+        "repo": "Habit-tracker",
+        "releaseType": "release"
+      }
+    ]
   }
 }
