@@ -3,9 +3,16 @@ import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, ResponsiveContainer, Tooltip, LabelList
 } from 'recharts';
-import { Crown, Check, Plus, Trash2, X, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Moon, Smile, RotateCcw, Pencil, Download, Upload, Palette, RefreshCw, GripVertical } from 'lucide-react';
+import { Crown, Check, Plus, Trash2, X, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Moon, Smile, RotateCcw, Pencil, Download, Upload, Palette, RefreshCw, GripVertical, Cloud, LogOut } from 'lucide-react';
 import { siYoutube, siInstagram, siThreads, siFacebook, siTiktok, siX, siSnapchat, siPinterest, siReddit, siDiscord, siTwitch, siKakaotalk, siNaver, siTelegram, siWhatsapp, siSpotify, siGithub } from 'simple-icons';
+import { createClient } from '@supabase/supabase-js';
 import pkg from '../package.json';
+
+// Supabase (로그인 + 기기 간 동기화). URL·publishable 키는 공개돼도 안전한 값(RLS로 보호).
+const SUPA_URL = 'https://suhsuqsddrxqntjbmxqs.supabase.co';
+const SUPA_KEY = 'sb_publishable_A6ZbhQmMzFRj0MIcTEHz-Q_dqAADbmW';
+const supabase = createClient(SUPA_URL, SUPA_KEY);
+const buildPayload = (s) => ({ projects: s.projects, habits: s.habits, completions: s.completions, wellness: s.wellness, theme: s.theme, nameColW: s.nameColW });
 
 /* ---------------- helpers ---------------- */
 const pad = (n) => String(n).padStart(2, '0');
@@ -424,6 +431,15 @@ export default function HabitGameDashboard() {
   const canUpdate = typeof window !== 'undefined' && !!window.habitUpdater; // 데스크탑(Electron)에서만 버튼 노출
   const [nameColW, setNameColW] = useState(198); // 습관 이름칸 너비(드래그로 조절, 저장됨)
   const [openCat, setOpenCat] = useState(EMOJI_CATS[0].name); // 아이콘 선택기에서 펼쳐진 분류(아코디언)
+  // 로그인 + 기기 간 동기화
+  const [session, setSession] = useState(null);
+  const [authModal, setAuthModal] = useState(false);
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPw, setAuthPw] = useState('');
+  const [authBusy, setAuthBusy] = useState(false);
+  const [authErr, setAuthErr] = useState('');
+  const [syncMsg, setSyncMsg] = useState('');
+  const pullingRef = useRef(false); // 클라우드에서 내려받는 중엔 자동 업로드 막기(루프/덮어쓰기 방지)
   const th = THEMES[theme] || THEMES.green;
   const pageStyle = { '--green': th.primary, '--green2': th.primary2, '--lime': th.accent, '--lime2': th.accent2, '--page': th.page, '--wknd': th.wknd, '--todaycol': th.today };
 
@@ -459,19 +475,97 @@ export default function HabitGameDashboard() {
 
   // ESC 로 열려 있는 모달 닫기
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') { setAddingHabit(false); setEditingHabitId(null); setProjModal(false); setDialog(null); } };
+    const onKey = (e) => { if (e.key === 'Escape') { setAddingHabit(false); setEditingHabitId(null); setProjModal(false); setDialog(null); setAuthModal(false); } };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
   // 모달이 열리면 뒤 배경(앱 전체) 스크롤 잠금 → 스크롤바 중복 방지
   useEffect(() => {
-    if (!(addingHabit || projModal || themeModal || dialog)) return;
+    if (!(addingHabit || projModal || themeModal || dialog || authModal)) return;
     const html = document.documentElement;
     const prev = html.style.overflow;
     html.style.overflow = 'hidden';
     return () => { html.style.overflow = prev; };
-  }, [addingHabit, projModal, themeModal, dialog]);
+  }, [addingHabit, projModal, themeModal, dialog, authModal]);
+
+  // ── 로그인 / 기기 간 동기화 (Supabase) ──────────────────────
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    return () => { try { sub.subscription.unsubscribe(); } catch (e) {} };
+  }, []);
+  const uid = session && session.user ? session.user.id : null;
+  const pushPayload = async (userId, payload) => {
+    try { const { error } = await supabase.from('habit_data').upsert({ user_id: userId, data: payload, updated_at: new Date().toISOString() }); return !error; }
+    catch (e) { return false; }
+  };
+  // 로그인되면 클라우드 데이터를 내려받음. 없으면 현재 기기 데이터를 올리고, 양쪽 다 있고 다르면 물어봄(데이터 보호).
+  useEffect(() => {
+    if (!uid || !loaded) return;
+    let cancel = false;
+    (async () => {
+      pullingRef.current = true;
+      setSyncMsg('동기화 중…');
+      let res;
+      try { res = await supabase.from('habit_data').select('data').eq('user_id', uid).maybeSingle(); }
+      catch (e) { res = { error: e }; }
+      if (cancel) { pullingRef.current = false; return; }
+      if (res.error) { setSyncMsg('동기화 오류'); pullingRef.current = false; return; }
+      const cloud = res.data && res.data.data;
+      const cloudValid = cloud && Array.isArray(cloud.habits) && Array.isArray(cloud.projects);
+      const local = buildPayload({ projects, habits, completions, wellness, theme, nameColW });
+      const applyCloud = () => {
+        setProjects(cloud.projects); setHabits(cloud.habits); setCompletions(cloud.completions || {}); setWellness(cloud.wellness || {});
+        if (cloud.theme && THEMES[cloud.theme]) setTheme(cloud.theme);
+        if (typeof cloud.nameColW === 'number') setNameColW(Math.max(150, Math.min(400, cloud.nameColW)));
+        setSyncMsg('동기화됨 ✓');
+      };
+      if (!cloudValid) { const ok = await pushPayload(uid, local); setSyncMsg(ok ? '동기화됨 ✓' : '동기화 오류'); pullingRef.current = false; return; }
+      const localHasData = habits.length > 0 || projects.length > 0;
+      const same = JSON.stringify(local) === JSON.stringify(cloud);
+      if (!localHasData || same) { applyCloud(); pullingRef.current = false; return; }
+      pullingRef.current = false; // 사용자 선택 대기 동안 자동업로드 풀어둠(상태 안 바뀌므로 push 안 됨)
+      setDialog({
+        message: '이 계정에 저장된 클라우드 기록이 있어요.\n\n· [클라우드 불러오기] = 이 기기 기록이 클라우드 내용으로 바뀝니다.\n· [이 기기 걸로] = 이 기기 기록을 클라우드에 올립니다(클라우드 덮어쓰기).',
+        confirmLabel: '클라우드 불러오기', cancelLabel: '이 기기 걸로',
+        onConfirm: () => applyCloud(),
+        onCancel: async () => { setSyncMsg('동기화 중…'); const ok = await pushPayload(uid, local); setSyncMsg(ok ? '동기화됨 ✓' : '동기화 오류'); },
+      });
+    })();
+    return () => { cancel = true; };
+  }, [uid, loaded]);
+  // 로그인 상태에서 데이터가 바뀌면 디바운스 후 클라우드에 올림
+  useEffect(() => {
+    if (!uid || !loaded || pullingRef.current) return;
+    const payload = buildPayload({ projects, habits, completions, wellness, theme, nameColW });
+    const id = setTimeout(async () => { setSyncMsg('저장 중…'); const ok = await pushPayload(uid, payload); setSyncMsg(ok ? '동기화됨 ✓' : '동기화 오류'); }, 1200);
+    return () => clearTimeout(id);
+  }, [projects, habits, completions, wellness, theme, nameColW, uid, loaded]);
+  const authErrMsg = (e) => {
+    const m = ((e && e.message) || '').toLowerCase();
+    if (m.includes('invalid login')) return '이메일 또는 비밀번호가 올바르지 않아요.';
+    if (m.includes('already') && m.includes('regist')) return '이미 가입된 이메일이에요. 로그인해 주세요.';
+    if (m.includes('at least 6') || (m.includes('password') && m.includes('6'))) return '비밀번호는 6자 이상이어야 해요.';
+    if (m.includes('valid email') || m.includes('email address')) return '이메일 형식을 확인해 주세요.';
+    if (m.includes('not confirmed') || m.includes('email not')) return '이메일 확인이 필요해요. 메일함의 링크를 누른 뒤 로그인하세요.';
+    return '문제가 발생했어요: ' + ((e && e.message) || '알 수 없음');
+  };
+  const doLogin = async () => {
+    if (authBusy) return; setAuthBusy(true); setAuthErr('');
+    const { error } = await supabase.auth.signInWithPassword({ email: authEmail.trim(), password: authPw });
+    setAuthBusy(false);
+    if (error) setAuthErr(authErrMsg(error)); else { setAuthModal(false); setAuthPw(''); }
+  };
+  const doSignup = async () => {
+    if (authBusy) return; setAuthBusy(true); setAuthErr('');
+    const { data, error } = await supabase.auth.signUp({ email: authEmail.trim(), password: authPw });
+    setAuthBusy(false);
+    if (error) { setAuthErr(authErrMsg(error)); return; }
+    if (data && data.session) { setAuthModal(false); setAuthPw(''); }
+    else setAuthErr('가입 확인 메일을 보냈어요. 메일의 링크를 누른 뒤 다시 로그인하세요. (Supabase에서 이메일 확인을 끄면 바로 가입돼요.)');
+  };
+  const doLogout = async () => { try { await supabase.auth.signOut(); } catch (e) {} setAuthModal(false); setSyncMsg(''); };
 
   // 업데이트 상태를 메인 프로세스에서 받아 헤더 버튼에 표시.
   // checking/latest/error 는 사용자가 직접 누른 경우에만 표시(자동 백그라운드 확인은 조용히),
@@ -870,6 +964,7 @@ export default function HabitGameDashboard() {
           </div>
           <div className="hg-topctl">
             <input ref={fileInputRef} type="file" accept="application/json,.json" style={{ display: 'none' }} onChange={importData} />
+            <button className="hg-btn ghost" onClick={() => setAuthModal(true)} title={session ? session.user.email : '로그인하면 PC·폰 동기화'}><Cloud size={16} />{session ? (syncMsg || '동기화 켜짐') : '로그인'}</button>
             <button className="hg-btn ghost" onClick={() => fileInputRef.current && fileInputRef.current.click()} title="백업 파일 불러오기"><Download size={16} />가져오기</button>
             <button className="hg-btn ghost" onClick={exportData} title="기록을 파일로 저장"><Upload size={16} />내보내기</button>
             <button className="hg-btn ghost" onClick={() => setThemeModal(true)} title="색상 테마"><Palette size={16} />테마</button>
@@ -1148,7 +1243,7 @@ export default function HabitGameDashboard() {
             <div className="hg-mt" style={{ marginBottom: 14 }}>{dialog.alert ? '알림' : '확인'}</div>
             <div style={{ fontSize: 15, color: 'var(--muted)', fontWeight: 600, lineHeight: 1.6, marginBottom: 24, whiteSpace: 'pre-wrap' }}>{dialog.message}</div>
             <div style={{ display: 'flex', gap: 10 }}>
-              {!dialog.alert && <button className="hg-btn ghost" style={{ flex: 1, justifyContent: 'center', padding: 13 }} onClick={() => setDialog(null)}>취소</button>}
+              {!dialog.alert && <button className="hg-btn ghost" style={{ flex: 1, justifyContent: 'center', padding: 13 }} onClick={() => { const cb = dialog.onCancel; setDialog(null); if (cb) cb(); }}>{dialog.cancelLabel || '취소'}</button>}
               <button className="hg-btn primary" style={{ flex: 1, justifyContent: 'center', padding: 13 }} onClick={() => { const cb = dialog.onConfirm; setDialog(null); if (cb) cb(); }}>{dialog.alert ? '확인' : (dialog.confirmLabel || '확인')}</button>
             </div>
           </div>
@@ -1167,6 +1262,35 @@ export default function HabitGameDashboard() {
                 </button>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {authModal && (
+        <div className="hg-ov" onMouseDown={(e) => { if (e.target === e.currentTarget) setAuthModal(false); }}>
+          <div className="hg-modal" style={{ maxWidth: 400 }} onClick={(e) => e.stopPropagation()}>
+            <div className="hg-mh"><div className="hg-mt">{session ? '내 계정 · 동기화' : '로그인 / 가입'}</div><button className="hg-mx" onClick={() => setAuthModal(false)}><X size={19} /></button></div>
+            {session ? (
+              <div>
+                <div style={{ fontSize: 13, color: 'var(--muted)', fontWeight: 700, marginBottom: 6 }}>로그인됨</div>
+                <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, wordBreak: 'break-all' }}>{session.user.email}</div>
+                <div style={{ fontSize: 13.5, color: 'var(--muted)', fontWeight: 600, marginBottom: 22, lineHeight: 1.6 }}>이 계정으로 PC·폰이 자동 동기화돼요.{syncMsg ? ` (${syncMsg})` : ''} 다른 기기에서도 같은 이메일·비밀번호로 로그인하세요.</div>
+                <button className="hg-btn ghost" style={{ width: '100%', justifyContent: 'center', padding: 13 }} onClick={doLogout}><LogOut size={16} />로그아웃</button>
+              </div>
+            ) : (
+              <div>
+                <div className="hg-ml">이메일</div>
+                <input className="hg-mi" type="email" autoComplete="email" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} placeholder="you@example.com" autoFocus />
+                <div className="hg-ml">비밀번호</div>
+                <input className="hg-mi" type="password" autoComplete="current-password" value={authPw} onChange={(e) => setAuthPw(e.target.value)} placeholder="6자 이상" onKeyDown={(e) => e.key === 'Enter' && doLogin()} />
+                {authErr && <div style={{ color: '#cf4f52', fontSize: 13.5, fontWeight: 600, margin: '-6px 0 14px', lineHeight: 1.5 }}>{authErr}</div>}
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button className="hg-btn ghost" style={{ flex: 1, justifyContent: 'center', padding: 13 }} onClick={doSignup} disabled={authBusy || !authEmail.trim() || authPw.length < 6}>회원가입</button>
+                  <button className="hg-btn primary" style={{ flex: 1, justifyContent: 'center', padding: 13 }} onClick={doLogin} disabled={authBusy || !authEmail.trim() || authPw.length < 6}>로그인</button>
+                </div>
+                <div style={{ fontSize: 12.5, color: 'var(--faint)', fontWeight: 600, marginTop: 16, lineHeight: 1.6 }}>처음이면 이메일·비밀번호 입력 후 [회원가입]. 로그인하면 이 기기 기록과 클라우드가 동기화돼요. (실제 데이터가 있는 PC에서 먼저 로그인하는 걸 권장해요.)</div>
+              </div>
+            )}
           </div>
         </div>
       )}
