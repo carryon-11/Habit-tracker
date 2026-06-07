@@ -344,7 +344,41 @@ const CSS = `
 
 @keyframes hgFade{from{opacity:0;}to{opacity:1;}}
 @keyframes hgPop{from{opacity:0;transform:translateY(16px) scale(.98);}to{opacity:1;transform:none;}}
-@media(max-width:720px){.hg-page{padding:14px;}}
+/* ===== 모바일(≤760px): 데스크탑(≥760px)은 그대로, 좁은 화면만 재배치 ===== */
+@media(max-width:760px){
+  .hg-page{padding:12px;font-size:14.5px;}
+  /* 헤더: 로고+이름 위, 버튼들은 아래 줄에서 꽉 차게 */
+  .hg-top{gap:12px;margin-bottom:14px;}
+  .hg-logo{width:44px;height:44px;border-radius:12px;}
+  .hg-bname{font-size:22px;}
+  .hg-topctl{flex:1 1 100%;flex-wrap:wrap;gap:8px;}
+  .hg-btn{flex:1 1 auto;justify-content:center;padding:10px 8px;font-size:13px;gap:5px;}
+  .hg-btn.primary{flex:1 1 100%;padding:12px;font-size:14.5px;}
+  /* 계획 카드(가로 스크롤 유지) 살짝 작게 */
+  .hg-nav{gap:9px;}
+  .hg-navcard{flex-basis:184px;min-width:184px;}
+  /* 모든 카드 한 줄에 하나씩(세로 스택) — 인라인 flex도 덮어쓰기 */
+  .hg-row{gap:12px;margin-bottom:12px;}
+  .hg-row>*{flex:1 1 100% !important;min-width:0 !important;max-width:100% !important;}
+  .hg-set{padding:16px;gap:14px;}
+  .hg-set-mrow{justify-content:center;gap:22px;}
+  /* 연도 탭 */
+  .hg-tabs{padding:6px;gap:5px;}
+  .hg-mtab{min-width:54px;padding:10px 4px;font-size:13.5px;}
+  .hg-welllog{gap:14px;}
+  /* 모달: 화면에 더 꽉 차게 */
+  .hg-ov{padding:12px;}
+  .hg-modal{padding:20px;border-radius:18px;}
+  .hg-modal-tall .hg-mh{padding:20px 18px 12px;}
+  .hg-modal-tall .hg-mbody{padding:2px 18px 20px;}
+  .hg-emg{grid-template-columns:repeat(7,1fr);}
+}
+@media(max-width:430px){
+  .hg-btn{font-size:12.5px;padding:10px 6px;}
+  .hg-set-m{font-size:34px;}
+  .hg-emg{grid-template-columns:repeat(6,1fr);}
+  .hg-head{font-size:12px;padding:10px 13px;}
+}
 `;
 
 function ChartTip({ active, payload, label, suffix }) {
