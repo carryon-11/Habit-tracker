@@ -367,6 +367,8 @@ const CSS = `
   /* 모든 카드 한 줄에 하나씩(세로 스택) — 인라인 flex도 덮어쓰기 */
   .hg-row{gap:12px;margin-bottom:12px;}
   .hg-row>*{flex:1 1 100% !important;min-width:0 !important;max-width:100% !important;}
+  /* 카드 본문: 모바일은 카드가 늘어날 기준(옆 카드)이 없어 flex:1이면 높이 0으로 찌부됨 → 자기 높이 쓰게 */
+  .hg-body{flex:none;}
   .hg-set{padding:16px;gap:14px;}
   .hg-set-mrow{justify-content:center;gap:22px;}
   /* 연도 탭 */
