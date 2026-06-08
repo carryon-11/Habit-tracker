@@ -335,6 +335,11 @@ const CSS = `
 .hg-seg{display:flex;gap:8px;margin-bottom:24px;}
 .hg-seg button{flex:1;padding:12px 0;border-radius:12px;border:1px solid var(--line2);background:#fafbf7;font-size:15.5px;font-weight:700;font-family:var(--ui);color:var(--muted);cursor:pointer;transition:.16s;}
 .hg-seg button.on{background:var(--green);border-color:var(--green);color:#fff;}
+.hg-or{display:flex;align-items:center;gap:10px;margin:18px 0 14px;color:var(--faint);font-size:12px;font-weight:600;}
+.hg-or::before,.hg-or::after{content:'';flex:1;height:1px;background:var(--line);}
+.hg-social{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:13px;border-radius:13px;border:none;font-family:var(--ui);font-size:15px;font-weight:700;cursor:pointer;transition:background .15s;}
+.hg-social.kakao{background:#FEE500;color:#3C1E1E;}
+.hg-social.kakao:hover{background:#f5dd00;}
 .hg-projsel{display:flex;flex-direction:column;gap:8px;margin-bottom:24px;}
 .hg-pchip{display:flex;align-items:center;gap:10px;padding:13px 14px;border-radius:13px;border:1px solid var(--line2);background:#fafbf7;font-size:15px;font-weight:600;font-family:var(--ui);color:var(--ink);cursor:pointer;transition:.16s;text-align:left;}
 .hg-pchip:hover{background:#f0f3ea;}
@@ -569,6 +574,14 @@ export default function HabitGameDashboard() {
     else setAuthErr('가입 확인 메일을 보냈어요. 메일의 링크를 누른 뒤 다시 로그인하세요. (Supabase에서 이메일 확인을 끄면 바로 가입돼요.)');
   };
   const doLogout = async () => { try { await supabase.auth.signOut(); } catch (e) {} setAuthModal(false); setSyncMsg(''); };
+  // 소셜 로그인(OAuth). 로그인 후 이 웹 주소로 돌아옴 → supabase-js가 세션 자동 처리. (웹/폰 전용)
+  const signInOAuth = async (provider) => {
+    setAuthErr('');
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo: window.location.origin + window.location.pathname } });
+      if (error) setAuthErr(authErrMsg(error));
+    } catch (e) { setAuthErr(authErrMsg(e)); }
+  };
 
   // 업데이트 상태를 메인 프로세스에서 받아 헤더 버튼에 표시.
   // checking/latest/error 는 사용자가 직접 누른 경우에만 표시(자동 백그라운드 확인은 조용히),
@@ -1294,6 +1307,12 @@ export default function HabitGameDashboard() {
                 <button className="hg-btn primary" style={{ width: '100%', justifyContent: 'center', padding: 14, fontSize: 16 }} onClick={authMode === 'login' ? doLogin : doSignup} disabled={authBusy || !authEmail.trim() || authPw.length < 6}>
                   {authBusy ? '잠시만요…' : (authMode === 'login' ? '로그인' : '회원가입')}
                 </button>
+                {!window.habitStore && (
+                  <>
+                    <div className="hg-or"><span>또는</span></div>
+                    <button type="button" className="hg-social kakao" onClick={() => signInOAuth('kakao')}>{renderIcon('sns:kakaotalk', '18px')} 카카오로 계속하기</button>
+                  </>
+                )}
                 <div style={{ fontSize: 12.5, color: 'var(--faint)', fontWeight: 600, marginTop: 16, lineHeight: 1.6 }}>
                   {authMode === 'login'
                     ? '계정이 없으면 위 ‘회원가입’ 탭을 누르세요. 다른 기기에서도 같은 이메일·비밀번호로 로그인하면 기록이 동기화돼요.'
