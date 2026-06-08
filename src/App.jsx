@@ -578,10 +578,11 @@ export default function HabitGameDashboard() {
   // 소셜 로그인(OAuth). 웹/폰=일반 리다이렉트, 데스크탑 앱=앱 내부 창에서 로그인→코드 받아 세션 교환.
   const signInOAuth = async (provider) => {
     setAuthErr(''); setAuthBusy(true);
+    const scopes = provider === 'kakao' ? 'profile_nickname' : undefined; // 카카오는 닉네임만(이메일=사업자인증 필요라 제외)
     try {
       if (window.habitStore && window.habitAuth && window.habitAuth.oauth) {
         // 데스크탑: 리다이렉트 없이 인증 URL만 받아 앱 내부 창에서 처리
-        const { data, error } = await supabase.auth.signInWithOAuth({ provider, options: { skipBrowserRedirect: true, redirectTo: WEB_URL } });
+        const { data, error } = await supabase.auth.signInWithOAuth({ provider, options: { skipBrowserRedirect: true, redirectTo: WEB_URL, scopes } });
         if (error || !data || !data.url) { setAuthErr(authErrMsg(error || { message: '인증 주소를 못 받았어요' })); return; }
         const code = await window.habitAuth.oauth(data.url, WEB_URL);
         if (!code) { setAuthErr('로그인이 취소됐어요.'); return; }
@@ -593,7 +594,7 @@ export default function HabitGameDashboard() {
         setAuthErr('앱을 최신 버전으로 업데이트하면 소셜 로그인이 돼요. (헤더 “업데이트 확인”)');
       } else {
         // 웹/폰: 일반 리다이렉트
-        const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo: window.location.origin + window.location.pathname } });
+        const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo: window.location.origin + window.location.pathname, scopes } });
         if (error) setAuthErr(authErrMsg(error));
       }
     } catch (e) { setAuthErr(authErrMsg(e)); }
