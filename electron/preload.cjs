@@ -16,3 +16,8 @@ contextBridge.exposeInMainWorld('habitUpdater', {
     return () => ipcRenderer.removeListener('update:status', handler);
   },
 });
+
+// 소셜 로그인용. 앱 내부 창에서 OAuth 진행 → 리다이렉트의 code 반환(취소 시 null).
+contextBridge.exposeInMainWorld('habitAuth', {
+  oauth: (authUrl, redirectBase) => ipcRenderer.invoke('oauth:start', { authUrl, redirectBase }),
+});

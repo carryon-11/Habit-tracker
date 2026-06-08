@@ -11,7 +11,8 @@ import pkg from '../package.json';
 // Supabase (로그인 + 기기 간 동기화). URL·publishable 키는 공개돼도 안전한 값(RLS로 보호).
 const SUPA_URL = 'https://suhsuqsddrxqntjbmxqs.supabase.co';
 const SUPA_KEY = 'sb_publishable_A6ZbhQmMzFRj0MIcTEHz-Q_dqAADbmW';
-const supabase = createClient(SUPA_URL, SUPA_KEY);
+const supabase = createClient(SUPA_URL, SUPA_KEY, { auth: { flowType: 'pkce' } });
+const WEB_URL = 'https://carryon-11.github.io/Habit-tracker/'; // OAuth 복귀 주소(Supabase 허용목록에 등록됨)
 const buildPayload = (s) => ({ projects: s.projects, habits: s.habits, completions: s.completions, wellness: s.wellness, theme: s.theme, nameColW: s.nameColW });
 
 /* ---------------- helpers ---------------- */
@@ -574,13 +575,29 @@ export default function HabitGameDashboard() {
     else setAuthErr('가입 확인 메일을 보냈어요. 메일의 링크를 누른 뒤 다시 로그인하세요. (Supabase에서 이메일 확인을 끄면 바로 가입돼요.)');
   };
   const doLogout = async () => { try { await supabase.auth.signOut(); } catch (e) {} setAuthModal(false); setSyncMsg(''); };
-  // 소셜 로그인(OAuth). 로그인 후 이 웹 주소로 돌아옴 → supabase-js가 세션 자동 처리. (웹/폰 전용)
+  // 소셜 로그인(OAuth). 웹/폰=일반 리다이렉트, 데스크탑 앱=앱 내부 창에서 로그인→코드 받아 세션 교환.
   const signInOAuth = async (provider) => {
-    setAuthErr('');
+    setAuthErr(''); setAuthBusy(true);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo: window.location.origin + window.location.pathname } });
-      if (error) setAuthErr(authErrMsg(error));
+      if (window.habitStore && window.habitAuth && window.habitAuth.oauth) {
+        // 데스크탑: 리다이렉트 없이 인증 URL만 받아 앱 내부 창에서 처리
+        const { data, error } = await supabase.auth.signInWithOAuth({ provider, options: { skipBrowserRedirect: true, redirectTo: WEB_URL } });
+        if (error || !data || !data.url) { setAuthErr(authErrMsg(error || { message: '인증 주소를 못 받았어요' })); return; }
+        const code = await window.habitAuth.oauth(data.url, WEB_URL);
+        if (!code) { setAuthErr('로그인이 취소됐어요.'); return; }
+        const { error: exErr } = await supabase.auth.exchangeCodeForSession(code);
+        if (exErr) { setAuthErr(authErrMsg(exErr)); return; }
+        setAuthModal(false);
+      } else if (window.habitStore) {
+        // 데스크탑인데 구버전(habitAuth 없음): 앱 업데이트 안내
+        setAuthErr('앱을 최신 버전으로 업데이트하면 소셜 로그인이 돼요. (헤더 “업데이트 확인”)');
+      } else {
+        // 웹/폰: 일반 리다이렉트
+        const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo: window.location.origin + window.location.pathname } });
+        if (error) setAuthErr(authErrMsg(error));
+      }
     } catch (e) { setAuthErr(authErrMsg(e)); }
+    finally { setAuthBusy(false); }
   };
 
   // 업데이트 상태를 메인 프로세스에서 받아 헤더 버튼에 표시.
@@ -1307,12 +1324,8 @@ export default function HabitGameDashboard() {
                 <button className="hg-btn primary" style={{ width: '100%', justifyContent: 'center', padding: 14, fontSize: 16 }} onClick={authMode === 'login' ? doLogin : doSignup} disabled={authBusy || !authEmail.trim() || authPw.length < 6}>
                   {authBusy ? '잠시만요…' : (authMode === 'login' ? '로그인' : '회원가입')}
                 </button>
-                {!window.habitStore && (
-                  <>
-                    <div className="hg-or"><span>또는</span></div>
-                    <button type="button" className="hg-social kakao" onClick={() => signInOAuth('kakao')}>{renderIcon('sns:kakaotalk', '18px')} 카카오로 계속하기</button>
-                  </>
-                )}
+                <div className="hg-or"><span>또는</span></div>
+                <button type="button" className="hg-social kakao" onClick={() => signInOAuth('kakao')} disabled={authBusy}>{renderIcon('sns:kakaotalk', '18px')} 카카오로 계속하기</button>
                 <div style={{ fontSize: 12.5, color: 'var(--faint)', fontWeight: 600, marginTop: 16, lineHeight: 1.6 }}>
                   {authMode === 'login'
                     ? '계정이 없으면 위 ‘회원가입’ 탭을 누르세요. 다른 기기에서도 같은 이메일·비밀번호로 로그인하면 기록이 동기화돼요.'

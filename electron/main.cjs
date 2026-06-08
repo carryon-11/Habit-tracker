@@ -47,6 +47,31 @@ ipcMain.handle('update:check', async () => {
   }
 });
 
+// 소셜 로그인: 앱 내부 창에서 OAuth 진행 → redirectBase 로 돌아오는 URL의 ?code 를 가로채 반환.
+// 별도 창은 preload 없이(3rd-party 로그인 페이지에 앱 API 노출 방지). 취소/실패 시 null.
+ipcMain.handle('oauth:start', async (_event, { authUrl, redirectBase }) => {
+  return new Promise((resolve) => {
+    let win;
+    try {
+      win = new BrowserWindow({
+        width: 480, height: 760, title: '로그인', autoHideMenuBar: true,
+        webPreferences: { nodeIntegration: false, contextIsolation: true },
+      });
+    } catch (e) { resolve(null); return; }
+    let done = false;
+    const finish = (code) => { if (done) return; done = true; resolve(code || null); try { if (!win.isDestroyed()) win.destroy(); } catch (e) {} };
+    const onNav = (ev, url) => {
+      if (!url || url.indexOf(redirectBase) !== 0) return; // 우리 복귀 주소로 오는 순간만 처리
+      try { ev.preventDefault(); } catch (e) {} // 그 페이지를 실제로 띄우지 않음(코드 소모 방지)
+      try { const u = new URL(url); finish(u.searchParams.get('code')); } catch (e) { finish(null); }
+    };
+    win.webContents.on('will-redirect', onNav);
+    win.webContents.on('will-navigate', onNav);
+    win.on('closed', () => { if (!done) { done = true; resolve(null); } });
+    win.loadURL(authUrl).catch(() => finish(null));
+  });
+});
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1440,
