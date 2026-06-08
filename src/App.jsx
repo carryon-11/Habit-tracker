@@ -1317,7 +1317,7 @@ export default function HabitGameDashboard() {
       {authModal && (
         <div className="hg-ov" onMouseDown={(e) => { if (e.target === e.currentTarget) setAuthModal(false); }}>
           <div className="hg-modal" style={{ maxWidth: 400 }} onClick={(e) => e.stopPropagation()}>
-            <div className="hg-mh"><div className="hg-mt">{session ? '내 계정 · 동기화' : (authMode === 'login' ? '로그인' : '회원가입')}</div><button className="hg-mx" onClick={() => setAuthModal(false)}><X size={19} /></button></div>
+            <div className="hg-mh"><div className="hg-mt">{session ? '내 계정 · 동기화' : '기기 간 동기화'}</div><button className="hg-mx" onClick={() => setAuthModal(false)}><X size={19} /></button></div>
             {session ? (
               <div>
                 <div style={{ fontSize: 13, color: 'var(--muted)', fontWeight: 700, marginBottom: 6 }}>로그인됨</div>
@@ -1337,7 +1337,7 @@ export default function HabitGameDashboard() {
                 <input className="hg-mi" type="password" autoComplete={authMode === 'login' ? 'current-password' : 'new-password'} value={authPw} onChange={(e) => setAuthPw(e.target.value)} placeholder="6자 이상" onKeyDown={(e) => e.key === 'Enter' && (authMode === 'login' ? doLogin() : doSignup())} />
                 {authErr && <div style={{ color: '#cf4f52', fontSize: 13.5, fontWeight: 600, margin: '-6px 0 14px', lineHeight: 1.5 }}>{authErr}</div>}
                 <button className="hg-btn primary" style={{ width: '100%', justifyContent: 'center', padding: 14, fontSize: 16 }} onClick={authMode === 'login' ? doLogin : doSignup} disabled={authBusy || !authEmail.trim() || authPw.length < 6}>
-                  {authBusy ? '잠시만요…' : (authMode === 'login' ? '로그인' : '회원가입')}
+                  {authBusy ? '잠시만요…' : (authMode === 'login' ? '로그인하기' : '가입하기')}
                 </button>
                 <div className="hg-or"><span>또는</span></div>
                 <button type="button" className="hg-social kakao" onClick={() => signInOAuth('kakao')} disabled={authBusy}>{renderIcon('sns:kakaotalk', '18px')} 카카오로 계속하기</button>
