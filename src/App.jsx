@@ -3,7 +3,7 @@ import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, ResponsiveContainer, Tooltip, LabelList
 } from 'recharts';
-import { Crown, Check, Plus, Trash2, X, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Moon, Smile, RotateCcw, Pencil, Download, Upload, Palette, RefreshCw, GripVertical, Cloud, LogOut } from 'lucide-react';
+import { Crown, Check, Plus, Trash2, X, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Moon, Smile, RotateCcw, Pencil, Palette, RefreshCw, GripVertical, Cloud, LogOut } from 'lucide-react';
 import { siYoutube, siInstagram, siThreads, siFacebook, siTiktok, siX, siSnapchat, siPinterest, siReddit, siDiscord, siTwitch, siKakaotalk, siNaver, siTelegram, siWhatsapp, siSpotify, siGithub } from 'simple-icons';
 import { createClient } from '@supabase/supabase-js';
 import pkg from '../package.json';
@@ -429,7 +429,6 @@ export default function HabitGameDashboard() {
   const [pEmoji, setPEmoji] = useState('🌱');
   const [pColor, setPColor] = useState(PROJECT_COLORS[0]);
   const [pHorizon, setPHorizon] = useState('장기');
-  const fileInputRef = useRef(null);
   const [dialog, setDialog] = useState(null); // 커스텀 확인/알림 모달 (네이티브 confirm/alert가 Electron 입력 포커스를 깨뜨리는 문제 회피)
   const [theme, setTheme] = useState('green');
   const [themeModal, setThemeModal] = useState(false);
@@ -536,8 +535,8 @@ export default function HabitGameDashboard() {
       if (!localHasData || same) { applyCloud(); pullingRef.current = false; return; }
       pullingRef.current = false; // 사용자 선택 대기 동안 자동업로드 풀어둠(상태 안 바뀌므로 push 안 됨)
       setDialog({
-        message: '이 계정에 저장된 클라우드 기록이 있어요.\n\n· [클라우드 불러오기] = 이 기기 기록이 클라우드 내용으로 바뀝니다.\n· [이 기기 걸로] = 이 기기 기록을 클라우드에 올립니다(클라우드 덮어쓰기).',
-        confirmLabel: '클라우드 불러오기', cancelLabel: '이 기기 걸로',
+        message: '이 계정에 저장된 클라우드 기록이 있어요.\n\n· [이 기기 내용 올리기] = 이 기기 기록을 클라우드에 올립니다(클라우드 덮어쓰기).\n· [클라우드 불러오기] = 이 기기 기록이 클라우드 내용으로 바뀝니다.',
+        confirmLabel: '클라우드 불러오기', cancelLabel: '이 기기 내용 올리기',
         onConfirm: () => applyCloud(),
         onCancel: async () => { setSyncMsg('동기화 중…'); const ok = await pushPayload(uid, local); setSyncMsg(ok ? '동기화됨 ✓' : '동기화 오류'); },
       });
@@ -838,32 +837,6 @@ export default function HabitGameDashboard() {
   });
   const reset = () => askConfirm('모든 계획·습관·기록을 삭제할까요? 되돌릴 수 없어요.', () => { setProjects([]); setHabits([]); setCompletions({}); setWellness({}); setActive('all'); });
 
-  const exportData = () => {
-    const data = { version: 1, exportedAt: new Date().toISOString(), projects, habits, completions, wellness, theme };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `habit-game-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(a); a.click(); a.remove();
-    URL.revokeObjectURL(url);
-  };
-  const importData = (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const d = JSON.parse(reader.result);
-        if (!Array.isArray(d.habits) || !Array.isArray(d.projects)) { showAlert('올바른 백업 파일이 아니에요.'); return; }
-        askConfirm('지금 기록을 이 백업 파일 내용으로 덮어쓸까요? 되돌릴 수 없어요.', () => {
-          setProjects(d.projects); setHabits(d.habits); setCompletions(d.completions || {}); setWellness(d.wellness || {}); if (d.theme && THEMES[d.theme]) setTheme(d.theme); setActive('all');
-        }, '덮어쓰기');
-      } catch (err) { showAlert('파일을 읽을 수 없어요.'); }
-    };
-    reader.readAsText(file);
-    e.target.value = '';
-  };
 
   const logKey = keyOf(year, month, Math.min(logDay, daysInMonth));
   const curLog = wellness[logKey] || {};
@@ -997,10 +970,7 @@ export default function HabitGameDashboard() {
             </small></div>
           </div>
           <div className="hg-topctl">
-            <input ref={fileInputRef} type="file" accept="application/json,.json" style={{ display: 'none' }} onChange={importData} />
             <button className="hg-btn ghost" onClick={() => setAuthModal(true)} title={session ? session.user.email : '로그인하면 PC·폰 동기화'}><Cloud size={16} />{session ? (syncMsg || '동기화 켜짐') : '로그인'}</button>
-            <button className="hg-btn ghost" onClick={() => fileInputRef.current && fileInputRef.current.click()} title="백업 파일 불러오기"><Download size={16} />가져오기</button>
-            <button className="hg-btn ghost" onClick={exportData} title="기록을 파일로 저장"><Upload size={16} />내보내기</button>
             <button className="hg-btn ghost" onClick={() => setThemeModal(true)} title="색상 테마"><Palette size={16} />테마</button>
             <button className="hg-btn ghost" onClick={reset}><RotateCcw size={16} />초기화</button>
             <button className="hg-btn primary" onClick={openAddHabit}><Plus size={18} />습관 추가</button>
