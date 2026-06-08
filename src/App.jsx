@@ -14,6 +14,14 @@ const SUPA_KEY = 'sb_publishable_A6ZbhQmMzFRj0MIcTEHz-Q_dqAADbmW';
 const supabase = createClient(SUPA_URL, SUPA_KEY, { auth: { flowType: 'pkce' } });
 const WEB_URL = 'https://carryon-11.github.io/Habit-tracker/'; // OAuth 복귀 주소(Supabase 허용목록에 등록됨)
 const buildPayload = (s) => ({ projects: s.projects, habits: s.habits, completions: s.completions, wellness: s.wellness, theme: s.theme, nameColW: s.nameColW });
+// 키 순서에 무관한 안정적 직렬화. Supabase jsonb는 객체 키 순서를 보존하지 않아서
+// 일반 JSON.stringify 비교는 데이터가 같아도 '다르다'고 오판함(= 매번 동기화 충돌 창의 원인).
+// 배열 순서는 유지(습관/계획 순서는 의미 있음), 객체 키만 정렬해서 비교.
+const stableStringify = (v) => {
+  if (v === null || typeof v !== 'object') return JSON.stringify(v) ?? 'null';
+  if (Array.isArray(v)) return '[' + v.map(stableStringify).join(',') + ']';
+  return '{' + Object.keys(v).sort().map((k) => JSON.stringify(k) + ':' + stableStringify(v[k])).join(',') + '}';
+};
 
 /* ---------------- helpers ---------------- */
 const pad = (n) => String(n).padStart(2, '0');
@@ -553,7 +561,7 @@ export default function HabitGameDashboard() {
       };
       if (!cloudValid) { const ok = await pushPayload(uid, local); setSyncMsg(ok ? '동기화됨 ✓' : '동기화 오류'); pullingRef.current = false; return; }
       const localHasData = habits.length > 0 || projects.length > 0;
-      const same = JSON.stringify(local) === JSON.stringify(cloud);
+      const same = stableStringify(local) === stableStringify(cloud);
       if (!localHasData || same) { applyCloud(); pullingRef.current = false; return; }
       pullingRef.current = false; // 사용자 선택 대기 동안 자동업로드 풀어둠(상태 안 바뀌므로 push 안 됨)
       setDialog({
