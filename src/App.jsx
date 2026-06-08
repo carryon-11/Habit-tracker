@@ -3,7 +3,7 @@ import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, ResponsiveContainer, Tooltip, LabelList
 } from 'recharts';
-import { Crown, Check, Plus, Trash2, X, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Moon, Smile, RotateCcw, Pencil, Palette, RefreshCw, GripVertical, Cloud, LogOut } from 'lucide-react';
+import { Crown, Check, Plus, Trash2, X, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Moon, Smile, RotateCcw, Pencil, Palette, RefreshCw, GripVertical, Cloud, LogOut, Smartphone } from 'lucide-react';
 import { siYoutube, siInstagram, siThreads, siFacebook, siTiktok, siX, siSnapchat, siPinterest, siReddit, siDiscord, siTwitch, siKakaotalk, siNaver, siTelegram, siWhatsapp, siSpotify, siGithub } from 'simple-icons';
 import { createClient } from '@supabase/supabase-js';
 import pkg from '../package.json';
@@ -137,6 +137,7 @@ const CSS = `
 .hg-spin{animation:hg-spin .9s linear infinite;}
 @keyframes hg-spin{to{transform:rotate(360deg);}}
 .hg-topctl{display:flex;align-items:center;gap:10px;}
+.hg-install{display:none;}
 .hg-btn{display:inline-flex;align-items:center;gap:8px;padding:11px 18px;border-radius:12px;border:1px solid var(--line2);background:var(--card);color:var(--ink);font-size:14.5px;font-weight:700;font-family:var(--ui);cursor:pointer;transition:.18s;}
 .hg-btn:hover{background:#f4f6ef;border-color:var(--green);}
 .hg-btn:disabled{opacity:.4;cursor:default;}
@@ -365,6 +366,10 @@ const CSS = `
   .hg-logo{width:44px;height:44px;border-radius:12px;}
   .hg-bname{font-size:22px;}
   .hg-topctl{flex:1 1 100%;flex-wrap:wrap;gap:8px;}
+  .hg-install{display:flex;align-items:center;gap:9px;background:var(--green);color:#fff;padding:11px 13px;border-radius:14px;margin-bottom:14px;box-shadow:0 4px 14px rgba(0,0,0,.12);}
+  .hg-install-txt{flex:1;font-weight:700;font-size:13.5px;line-height:1.35;}
+  .hg-install-go{background:#fff;color:var(--green);border:none;font-weight:800;font-size:13px;padding:8px 15px;border-radius:10px;cursor:pointer;white-space:nowrap;}
+  .hg-install-x{background:transparent;border:none;color:#fff;opacity:.85;cursor:pointer;padding:4px;display:inline-flex;align-items:center;}
   .hg-btn{flex:1 1 auto;justify-content:center;padding:10px 8px;font-size:13px;gap:5px;}
   .hg-btn.primary{flex:1 1 100%;padding:12px;font-size:14.5px;}
   /* 계획 카드(가로 스크롤 유지) 살짝 작게 */
@@ -438,6 +443,9 @@ export default function HabitGameDashboard() {
   const canUpdate = typeof window !== 'undefined' && !!window.habitUpdater; // 데스크탑(Electron)에서만 버튼 노출
   const [nameColW, setNameColW] = useState(198); // 습관 이름칸 너비(드래그로 조절, 저장됨)
   const [openCat, setOpenCat] = useState(EMOJI_CATS[0].name); // 아이콘 선택기에서 펼쳐진 분류(아코디언)
+  const [installEvt, setInstallEvt] = useState(null);    // PWA beforeinstallprompt (안드로이드/크롬)
+  const [showInstall, setShowInstall] = useState(false); // 모바일 '앱 설치' 배너 노출 여부
+  const [iosInstall, setIosInstall] = useState(false);   // iOS는 수동 설치(공유→홈 화면) 안내
   // 로그인 + 기기 간 동기화
   const [session, setSession] = useState(null);
   const [authModal, setAuthModal] = useState(false);
@@ -486,6 +494,20 @@ export default function HabitGameDashboard() {
     const onKey = (e) => { if (e.key === 'Escape') { setAddingHabit(false); setEditingHabitId(null); setProjModal(false); setDialog(null); setAuthModal(false); } };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  // PWA '앱으로 설치' — 모바일에서 홈 화면 앱 설치 유도 (데스크탑 앱/이미 설치된 경우엔 숨김)
+  useEffect(() => {
+    if (typeof window === 'undefined' || window.habitStore) return; // Electron 데스크탑 앱이면 제외
+    const standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+    if (standalone) return; // 이미 앱으로 설치돼 실행 중이면 불필요
+    if (localStorage.getItem('hg-install-hide') === '1') return; // 사용자가 닫았으면 다시 안 띄움
+    const onBIP = (e) => { e.preventDefault(); setInstallEvt(e); setShowInstall(true); };
+    const onInstalled = () => { setShowInstall(false); setInstallEvt(null); };
+    window.addEventListener('beforeinstallprompt', onBIP);
+    window.addEventListener('appinstalled', onInstalled);
+    if (/iphone|ipad|ipod/i.test(window.navigator.userAgent)) { setIosInstall(true); setShowInstall(true); } // iOS는 beforeinstallprompt 미지원 → 수동 안내
+    return () => { window.removeEventListener('beforeinstallprompt', onBIP); window.removeEventListener('appinstalled', onInstalled); };
   }, []);
 
   // 모달이 열리면 뒤 배경(앱 전체) 스크롤 잠금 → 스크롤바 중복 방지
@@ -817,6 +839,11 @@ export default function HabitGameDashboard() {
   // Electron에선 네이티브 confirm/alert가 이후 입력 포커스를 깨뜨려서(초기화·삭제 뒤 입력 안 되는 버그) 커스텀 모달로 대체.
   const askConfirm = (message, onConfirm, confirmLabel = '삭제') => setDialog({ message, onConfirm, confirmLabel });
   const showAlert = (message) => setDialog({ message, alert: true });
+  const doInstall = async () => {
+    if (installEvt) { installEvt.prompt(); try { await installEvt.userChoice; } catch (e) {} setInstallEvt(null); setShowInstall(false); }
+    else showAlert('📱 아이폰: 사파리 아래 공유 버튼 → "홈 화면에 추가"\n\n🤖 안드로이드: 브라우저 메뉴(⋮) → "앱 설치" 또는 "홈 화면에 추가"\n\n설치하면 홈 화면 아이콘으로 앱처럼 실행돼요.');
+  };
+  const hideInstall = () => { setShowInstall(false); try { localStorage.setItem('hg-install-hide', '1'); } catch (e) {} };
 
   // 헤더의 '업데이트 확인' 버튼 → 메인 프로세스에 즉시 확인 요청. 결과는 onStatus 이벤트가 이어받음.
   const checkUpdate = async () => {
@@ -976,6 +1003,15 @@ export default function HabitGameDashboard() {
             <button className="hg-btn primary" onClick={openAddHabit}><Plus size={18} />습관 추가</button>
           </div>
         </div>
+
+        {showInstall && (
+          <div className="hg-install">
+            <Smartphone size={18} />
+            <span className="hg-install-txt">앱으로 설치하고 더 편하게 쓰세요</span>
+            <button className="hg-install-go" onClick={doInstall}>{iosInstall ? '설치 방법' : '설치'}</button>
+            <button className="hg-install-x" onClick={hideInstall} aria-label="닫기"><X size={16} /></button>
+          </div>
+        )}
 
         <div className="hg-nav">
           <button className="hg-navcard" style={navStyle(th.primary, active === 'all')} onClick={() => setActive('all')}>
