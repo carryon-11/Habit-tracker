@@ -72,6 +72,10 @@ ipcMain.handle('oauth:start', async (_event, { authUrl, redirectBase }) => {
   });
 });
 
+// 창 닫기(X) 확인용 플래그 — 업데이트 재시작/완전 종료 등 프로그램적 종료 때는 묻지 않음.
+let isQuitting = false;
+app.on('before-quit', () => { isQuitting = true; });
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1440,
@@ -86,6 +90,25 @@ function createWindow() {
       contextIsolation: true,
       nodeIntegration: false,
     },
+  });
+
+  // 창 닫기(X) 누르면 한 번 더 확인 — 실수로 바로 닫히지 않게('웹'이 아닌 '앱' 느낌).
+  win.on('close', (e) => {
+    if (isQuitting) return; // 업데이트 재시작·완전 종료 등은 그냥 닫힘
+    e.preventDefault();
+    dialog.showMessageBox(win, {
+      type: 'question',
+      buttons: ['종료', '취소'],
+      defaultId: 1,
+      cancelId: 1,
+      noLink: true,
+      title: '종료 확인',
+      message: 'Habit Game을 종료할까요?',
+      detail: '변경한 내용은 자동으로 저장돼 있어요.',
+    }).then(({ response }) => {
+      if (response === 0) { isQuitting = true; win.close(); }
+      else win.focus();
+    }).catch(() => {});
   });
 
   const devUrl = process.env.VITE_DEV_SERVER_URL;
