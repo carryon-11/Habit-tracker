@@ -434,6 +434,7 @@ export default function HabitGameDashboard() {
   // 로그인 + 기기 간 동기화
   const [session, setSession] = useState(null);
   const [authModal, setAuthModal] = useState(false);
+  const [authMode, setAuthMode] = useState('login'); // 'login' | 'signup'
   const [authEmail, setAuthEmail] = useState('');
   const [authPw, setAuthPw] = useState('');
   const [authBusy, setAuthBusy] = useState(false);
@@ -544,7 +545,7 @@ export default function HabitGameDashboard() {
   }, [projects, habits, completions, wellness, theme, nameColW, uid, loaded]);
   const authErrMsg = (e) => {
     const m = ((e && e.message) || '').toLowerCase();
-    if (m.includes('invalid login')) return '이메일 또는 비밀번호가 올바르지 않아요.';
+    if (m.includes('invalid login')) return '이메일 또는 비밀번호가 올바르지 않아요. (처음이면 위 ‘회원가입’ 탭을 눌러 가입하세요.)';
     if (m.includes('already') && m.includes('regist')) return '이미 가입된 이메일이에요. 로그인해 주세요.';
     if (m.includes('at least 6') || (m.includes('password') && m.includes('6'))) return '비밀번호는 6자 이상이어야 해요.';
     if (m.includes('valid email') || m.includes('email address')) return '이메일 형식을 확인해 주세요.';
@@ -1269,7 +1270,7 @@ export default function HabitGameDashboard() {
       {authModal && (
         <div className="hg-ov" onMouseDown={(e) => { if (e.target === e.currentTarget) setAuthModal(false); }}>
           <div className="hg-modal" style={{ maxWidth: 400 }} onClick={(e) => e.stopPropagation()}>
-            <div className="hg-mh"><div className="hg-mt">{session ? '내 계정 · 동기화' : '로그인 / 가입'}</div><button className="hg-mx" onClick={() => setAuthModal(false)}><X size={19} /></button></div>
+            <div className="hg-mh"><div className="hg-mt">{session ? '내 계정 · 동기화' : (authMode === 'login' ? '로그인' : '회원가입')}</div><button className="hg-mx" onClick={() => setAuthModal(false)}><X size={19} /></button></div>
             {session ? (
               <div>
                 <div style={{ fontSize: 13, color: 'var(--muted)', fontWeight: 700, marginBottom: 6 }}>로그인됨</div>
@@ -1279,16 +1280,23 @@ export default function HabitGameDashboard() {
               </div>
             ) : (
               <div>
+                <div className="hg-seg" style={{ marginBottom: 18 }}>
+                  <button className={authMode === 'login' ? 'on' : ''} onClick={() => { setAuthMode('login'); setAuthErr(''); }}>로그인</button>
+                  <button className={authMode === 'signup' ? 'on' : ''} onClick={() => { setAuthMode('signup'); setAuthErr(''); }}>회원가입</button>
+                </div>
                 <div className="hg-ml">이메일</div>
                 <input className="hg-mi" type="email" autoComplete="email" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} placeholder="you@example.com" autoFocus />
                 <div className="hg-ml">비밀번호</div>
-                <input className="hg-mi" type="password" autoComplete="current-password" value={authPw} onChange={(e) => setAuthPw(e.target.value)} placeholder="6자 이상" onKeyDown={(e) => e.key === 'Enter' && doLogin()} />
+                <input className="hg-mi" type="password" autoComplete={authMode === 'login' ? 'current-password' : 'new-password'} value={authPw} onChange={(e) => setAuthPw(e.target.value)} placeholder="6자 이상" onKeyDown={(e) => e.key === 'Enter' && (authMode === 'login' ? doLogin() : doSignup())} />
                 {authErr && <div style={{ color: '#cf4f52', fontSize: 13.5, fontWeight: 600, margin: '-6px 0 14px', lineHeight: 1.5 }}>{authErr}</div>}
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <button className="hg-btn ghost" style={{ flex: 1, justifyContent: 'center', padding: 13 }} onClick={doSignup} disabled={authBusy || !authEmail.trim() || authPw.length < 6}>회원가입</button>
-                  <button className="hg-btn primary" style={{ flex: 1, justifyContent: 'center', padding: 13 }} onClick={doLogin} disabled={authBusy || !authEmail.trim() || authPw.length < 6}>로그인</button>
+                <button className="hg-btn primary" style={{ width: '100%', justifyContent: 'center', padding: 14, fontSize: 16 }} onClick={authMode === 'login' ? doLogin : doSignup} disabled={authBusy || !authEmail.trim() || authPw.length < 6}>
+                  {authBusy ? '잠시만요…' : (authMode === 'login' ? '로그인' : '회원가입')}
+                </button>
+                <div style={{ fontSize: 12.5, color: 'var(--faint)', fontWeight: 600, marginTop: 16, lineHeight: 1.6 }}>
+                  {authMode === 'login'
+                    ? '계정이 없으면 위 ‘회원가입’ 탭을 누르세요. 다른 기기에서도 같은 이메일·비밀번호로 로그인하면 기록이 동기화돼요.'
+                    : '이메일·비밀번호(6자 이상)만 정하면 바로 가입돼요. 실제 기록이 있는 PC에서 먼저 가입하는 걸 권장해요.'}
                 </div>
-                <div style={{ fontSize: 12.5, color: 'var(--faint)', fontWeight: 600, marginTop: 16, lineHeight: 1.6 }}>처음이면 이메일·비밀번호 입력 후 [회원가입]. 로그인하면 이 기기 기록과 클라우드가 동기화돼요. (실제 데이터가 있는 PC에서 먼저 로그인하는 걸 권장해요.)</div>
               </div>
             )}
           </div>
