@@ -85,8 +85,9 @@ const THEMES = {
 };
 
 // 같은 밀리초에 연속으로 추가해도 충돌하지 않는 고유 id (prefix + 시각 + 카운터)
+// ⚠️ 이름을 uid로 두면 안 됨 — 컴포넌트 안의 uid(로그인 사용자 id)가 가려서 호출이 TypeError로 깨짐(v1.0.30~43 습관추가 크래시 원인)
 let uidCounter = 0;
-const uid = (prefix) => `${prefix}${Date.now().toString(36)}${(uidCounter++).toString(36)}`;
+const genId = (prefix) => `${prefix}${Date.now().toString(36)}${(uidCounter++).toString(36)}`;
 
 const SEED_PROJECTS = [
   { id: 'p1', name: '건강 체질 만들기', emoji: '🌱', color: '#2f9e6f', horizon: '장기' },
@@ -426,6 +427,12 @@ export default function HabitGameDashboard() {
   const [wellness, setWellness] = useState({});
   const [loaded, setLoaded] = useState(false);
   const t = today0();
+  // 앱을 켜둔 채 자정이 지나면 '오늘' 표시가 어제에 멈추고 새 날짜가 체크 불가(future)로 남는 문제 방지 — 1분마다 날짜 변화 감지
+  const [todayMs, setTodayMs] = useState(t.getTime());
+  useEffect(() => {
+    const id = setInterval(() => setTodayMs((p) => { const n = today0().getTime(); return p === n ? p : n; }), 60000);
+    return () => clearInterval(id);
+  }, []);
   const [year, setYear] = useState(t.getFullYear());
   const [month, setMonth] = useState(t.getMonth());
   const [active, setActive] = useState('all');
@@ -499,7 +506,7 @@ export default function HabitGameDashboard() {
 
   // ESC 로 열려 있는 모달 닫기
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') { setAddingHabit(false); setEditingHabitId(null); setProjModal(false); setDialog(null); setAuthModal(false); } };
+    const onKey = (e) => { if (e.key === 'Escape') { setAddingHabit(false); setEditingHabitId(null); setProjModal(false); setThemeModal(false); setAuthModal(false); setDialog((d) => (d && d.modal ? d : null)); } };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
@@ -565,6 +572,7 @@ export default function HabitGameDashboard() {
       if (!localHasData || same) { applyCloud(); pullingRef.current = false; return; }
       pullingRef.current = false; // 사용자 선택 대기 동안 자동업로드 풀어둠(상태 안 바뀌므로 push 안 됨)
       setDialog({
+        modal: true, // 바깥 클릭/ESC로 못 닫음 — 안 고르고 닫은 뒤 아무 변경이나 하면 클라우드가 조용히 덮어써지는 사고 방지
         message: '이 계정에 저장된 클라우드 기록이 있어요.\n\n· [이 기기 내용 올리기] = 이 기기 기록을 클라우드에 올립니다(클라우드 덮어쓰기).\n· [클라우드 불러오기] = 이 기기 기록이 클라우드 내용으로 바뀝니다.',
         confirmLabel: '클라우드 불러오기', cancelLabel: '이 기기 내용 올리기',
         onConfirm: () => applyCloud(),
@@ -656,7 +664,7 @@ export default function HabitGameDashboard() {
   const days = useMemo(() => Array.from({ length: daysInMonth }, (_, i) => {
     const d = i + 1, wd = new Date(year, month, d).getDay();
     return { d, wd, key: keyOf(year, month, d), weekend: wd === 0 || wd === 6, isToday: year === t.getFullYear() && month === t.getMonth() && d === t.getDate(), future: new Date(year, month, d) > t };
-  }), [year, month, daysInMonth]);
+  }), [year, month, daysInMonth, todayMs]);
 
   const getProject = (id) => projects.find((p) => p.id === id);
   const habitColor = (h) => { const p = getProject(h.projectId); return p ? p.color : '#9aa49c'; };
@@ -742,7 +750,7 @@ export default function HabitGameDashboard() {
   const saveHabit = () => {
     if (!hName.trim()) return;
     if (editingHabitId) setHabits((p) => p.map((h) => h.id === editingHabitId ? { ...h, name: hName.trim(), emoji: hEmoji, projectId: hProject } : h));
-    else { if (!hProject) return; setHabits((p) => [...p, { id: uid('h'), name: hName.trim(), emoji: hEmoji, projectId: hProject }]); }
+    else { if (!hProject) return; setHabits((p) => [...p, { id: genId('h'), name: hName.trim(), emoji: hEmoji, projectId: hProject }]); }
     setAddingHabit(false); setEditingHabitId(null);
   };
   const delHabit = (id) => {
@@ -841,7 +849,7 @@ export default function HabitGameDashboard() {
   const saveProject = () => {
     if (!pName.trim()) return;
     if (editId) setProjects((ps) => ps.map((p) => p.id === editId ? { ...p, name: pName.trim(), emoji: pEmoji, color: pColor, horizon: pHorizon } : p));
-    else setProjects((ps) => [...ps, { id: uid('p'), name: pName.trim(), emoji: pEmoji, color: pColor, horizon: pHorizon }]);
+    else setProjects((ps) => [...ps, { id: genId('p'), name: pName.trim(), emoji: pEmoji, color: pColor, horizon: pHorizon }]);
     setProjModal(false);
   };
   // Electron에선 네이티브 confirm/alert가 이후 입력 포커스를 깨뜨려서(초기화·삭제 뒤 입력 안 되는 버그) 커스텀 모달로 대체.
@@ -870,7 +878,7 @@ export default function HabitGameDashboard() {
     setHabits((hs) => hs.map((h) => h.projectId === id ? { ...h, projectId: null } : h));
     if (active === id) setActive('all');
   });
-  const reset = () => askConfirm('모든 계획·습관·기록을 삭제할까요? 되돌릴 수 없어요.', () => { setProjects([]); setHabits([]); setCompletions({}); setWellness({}); setActive('all'); });
+  const reset = () => askConfirm(uid ? '모든 계획·습관·기록을 삭제할까요? 로그인 중이라 클라우드에 저장된 기록도 함께 비워져요. 되돌릴 수 없어요.' : '모든 계획·습관·기록을 삭제할까요? 되돌릴 수 없어요.', () => { setProjects([]); setHabits([]); setCompletions({}); setWellness({}); setActive('all'); });
 
 
   const logKey = keyOf(year, month, Math.min(logDay, daysInMonth));
@@ -1286,7 +1294,7 @@ export default function HabitGameDashboard() {
       )}
 
       {dialog && (
-        <div className="hg-ov" onMouseDown={(e) => { if (e.target === e.currentTarget) setDialog(null); }}>
+        <div className="hg-ov" onMouseDown={(e) => { if (e.target === e.currentTarget && !dialog.modal) setDialog(null); }}>
           <div className="hg-modal" style={{ maxWidth: 400 }} onClick={(e) => e.stopPropagation()}>
             <div className="hg-mt" style={{ marginBottom: 14 }}>{dialog.alert ? '알림' : '확인'}</div>
             <div style={{ fontSize: 15, color: 'var(--muted)', fontWeight: 600, lineHeight: 1.6, marginBottom: 24, whiteSpace: 'pre-wrap' }}>{dialog.message}</div>
